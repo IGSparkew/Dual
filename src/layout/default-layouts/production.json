@@ -1,0 +1,11 @@
+{
+  "id": "production",
+  "name": "Production",
+  "slots": {
+    "left": "session",
+    "center-top": "visualizer",
+    "center-bottom": "editor",
+    "right": "mixer",
+    "bottom": "transport"
+  }
+}

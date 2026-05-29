@@ -127,7 +127,7 @@ import { Button } from '@ui/Button';
 ### Langue
 
 - **Commentaires et documentation dans le code** : anglais
-- **Documentation projet** (docs/, README) : français
+- **Documentation projet** (docs/, README) : anglais
 
 ---
 

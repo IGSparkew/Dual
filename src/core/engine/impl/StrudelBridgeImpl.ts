@@ -1,60 +1,106 @@
-import { Hap } from "@core/types/hap";
-import { StrudelBridge } from "../StrudelBridge";
-const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput } = await import('@strudel/webaudio');
-const { repl } = await import('@strudel/core');
-const { mini } = await import('@strudel/mini');
+import type { Hap } from "@core/types/hap";
+import type { StrudelBridge } from "../StrudelBridge";
+
+// Imports top-level — chargés une seule fois
+const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput, samples } =
+  await import('@strudel/webaudio');
+const { repl, evalScope, evaluate: strudelEvaluate } = await import('@strudel/core');
+const miniModule = await import('@strudel/mini');
+const core = await import('@strudel/core');
+const webaudio = await import('@strudel/webaudio');
+
+let scopeReady = false;
 
 export class StrudelBridgeImpl implements StrudelBridge {
-    initialized: boolean = false;
-    audioContext: AudioContext | null;
-    replInstance : any | null;
-    
-    constructor() {
-        this.initialized = false;
-        this.audioContext = null;
-        this.replInstance = null;
-    }
-    
-    
-    async init(): Promise<void> {
-        if (this.initialized && this.audioContext != null  && this.replInstance != null) return;
-        const initOnGesture = async (): Promise<void> => {
-        try {
-            await initAudioOnFirstClick();
-            this.audioContext = getAudioContext();
-            await registerSynthSounds();
-            this.replInstance = repl({
-                defaultOutput: webaudioOutput,
-                getTime: () => this.audioContext!.currentTime,
-            });
+  private audioContext: AudioContext | null = null;
+  private replInstance: any = null;
+  private currentPattern: any = null;
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
-            this.initialized = true;
-            console.log('[StrudelBridge] Audio initialized, REPL ready');
-        } catch(err) {
-            console.error('[StrudelBridge] Error init:', err);
+  getScheduler() {
+    return this.replInstance?.scheduler ?? null;
+  }
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = new Promise<void>((resolve) => {
+      const initOnGesture = async () => {
+        try {
+          await initAudioOnFirstClick();
+          this.audioContext = getAudioContext();
+          await registerSynthSounds();
+
+            await samples('github:tidalcycles/sounds-dirty');
+
+
+        console.log('has samples:', typeof webaudio.samples);
+
+          this.replInstance = repl({
+            defaultOutput: webaudioOutput,
+            getTime: () => this.audioContext!.currentTime,
+          });
+
+          this.initialized = true;
+          console.log('[StrudelBridge] Audio initialized, REPL ready');
+        } catch (err) {
+          console.error('[StrudelBridge] Init error:', err);
         }
-    
+
         document.removeEventListener('click', initOnGesture);
         document.removeEventListener('keydown', initOnGesture);
-    };
- 
-        document.addEventListener('click', initOnGesture);
-        document.addEventListener('keydown', initOnGesture);
+        resolve();
+      };
+
+      document.addEventListener('click', initOnGesture);
+      document.addEventListener('keydown', initOnGesture);
+    });
+
+    return this.initPromise;
+  }
+
+  async evaluate(code: string): Promise<any> {
+    if (!this.initialized) {
+      await this.init();
     }
 
-    async evaluate(code: string): Promise<void> {
-        const pattern = mini(code).note().s("sawtooth");
-        await this.replInstance.scheduler.setPattern(pattern);
-        this.replInstance.scheduler.start();
-        setTimeout(() => this.replInstance.scheduler.stop(), 4000);
+    if (!scopeReady) {
+      await evalScope(core, miniModule);
+      scopeReady = true;
     }
-    
-    queryArc(begin: number, end: number): Hap[] {
-        throw new Error("Method not implemented.");
+
+    const transpiled = code.replace(
+      /"([^"]*(?:\[[^\]]*\])*[^"]*)"/g,
+      'mini("$1")'
+    );
+
+    const result = await strudelEvaluate(transpiled);
+    this.currentPattern = result?.pattern ?? result;
+
+    if (this.replInstance && this.currentPattern?.queryArc) {
+      this.replInstance.scheduler.setPattern(this.currentPattern);
     }
-    
-    dispose(): void {
-        throw new Error("Method not implemented.");
+
+    return this.currentPattern;
+  }
+
+  queryArc(begin: number, end: number): Hap[] {
+    if (!this.currentPattern) return [];
+    return this.currentPattern.queryArc(begin, end);
+  }
+
+  dispose(): void {
+    if (this.replInstance) {
+      this.replInstance.scheduler.stop();
+      this.replInstance = null;
     }
-    
+
+    this.audioContext = null;
+    this.currentPattern = null;
+    this.initialized = false;
+    this.initPromise = null;
+  }
 }

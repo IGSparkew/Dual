@@ -1,13 +1,30 @@
+import { useEffect } from 'react';
 import styles from './App.module.css';
-import { StrudelBridgeImpl } from '@core/engine/impl/StrudelBridgeImpl';
+import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
+import { useStore } from '@core/state/store';
 
 export function App() {
+const engineStatus = useStore((s) => s.engineStatus);
 
-    const struddleBridge = new StrudelBridgeImpl();
+  useEffect(() => {
+    strudelBridge.init();
+  }, []);
+
+
+  if (engineStatus !== 'ready' ) {
+    return (
+      <div className={styles.loading}>
+        <h1>Production Studio</h1>
+        {engineStatus === "init" && <p>Click anywhere to start</p>}
+        {engineStatus === 'loading' && <p>Initializing audio...</p>}
+      </div>
+    );
+
+  }
+  
    const handlePlay = async () => {
-      await struddleBridge.init();
-      await struddleBridge.evaluate('s("bd sd [hh hh] cp")');
-      const haps = struddleBridge.queryArc(0, 1);
+      await strudelBridge.evaluate('s("bd sd [hh hh] cp")');
+      const haps = strudelBridge.queryArc(0, 1);
       haps.forEach((hap, i) => {
         console.log(`Hap ${i}:`, hap.value, 
           'begin:', hap.whole.begin.valueOf(),
@@ -15,7 +32,7 @@ export function App() {
         );
       });
 
-    struddleBridge.getScheduler().start();
+    strudelBridge.getScheduler().start();
    }
 
   return (
@@ -26,7 +43,7 @@ export function App() {
       <main className={styles.workspace}>
         <p className={styles.placeholder}>Phase 1 — en cours d&apos;initialisation</p>
           <button onClick={handlePlay}>▶ Play</button>
-          <button onClick={() => struddleBridge.dispose()}>⏹ Stop</button>
+          <button onClick={() => strudelBridge.getScheduler().stop()}>⏹ Stop</button>
       </main>
     </div>
   );

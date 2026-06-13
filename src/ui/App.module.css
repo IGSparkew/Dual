@@ -34,3 +34,121 @@
   color: var(--text-secondary);
   font-size: 13px;
 }
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+  color: var(--text-primary);
+}
+
+.testPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 480px;
+  padding: 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.btn {
+  padding: 5px 12px;
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.badge[data-status="playing"] {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.badge[data-status="paused"] {
+  border-color: #facc15;
+  color: #facc15;
+}
+
+.badge[data-status="stopped"] {
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.codeInput {
+  font-family: monospace;
+  font-size: 13px;
+  padding: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.log {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}

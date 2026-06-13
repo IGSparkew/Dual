@@ -87,7 +87,10 @@ export class StrudelBridgeImpl implements StrudelBridge {
 
   queryArc(begin: number, end: number): Hap[] {
     if (!this.currentPattern) return [];
-    return this.currentPattern.queryArc(begin, end);
+    const haps = this.currentPattern.queryArc(begin, end);
+    console.log("query arc: \n");
+    console.log(JSON.stringify(haps, (_, v) => typeof v === 'bigint' ? Number(v) : v, 2))
+    return haps;
   }
 
   getScheduler() {

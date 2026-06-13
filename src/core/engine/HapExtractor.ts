@@ -1,5 +1,5 @@
-import type { Hap } from '../types/hap';
+import type { NormalizedHap } from '../types/hap';
 
 export interface HapExtractor {
-  extract(pattern: unknown, begin: number, end: number): Hap[];
+  extract(pattern: any, begin: number, end: number): NormalizedHap[];
 }

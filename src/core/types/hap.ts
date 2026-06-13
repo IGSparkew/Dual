@@ -9,3 +9,13 @@ export interface Hap {
   value: unknown;
   context?: Record<string, unknown>;
 }
+
+export interface NormalizedHap {
+  begin: number;
+  end: number;
+  sample: string | null;
+  note: string | number | null;
+  gain: number;
+  pan: number;
+  locations: { start: number; end: number }[] | null;
+}

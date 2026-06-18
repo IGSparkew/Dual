@@ -1,8 +1,13 @@
 import type { PanelManifest } from '@core/types/panel';
 import type { ComponentType } from 'react';
+import type { PanelApi } from './PanelApi';
+
+export interface PanelProps {
+  api: PanelApi;
+}
 
 export interface RegisteredPanel extends PanelManifest {
-  component: ComponentType;
+  component: ComponentType<PanelProps>;
 }
 
 export interface PanelRegistry {

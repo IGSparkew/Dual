@@ -50,7 +50,7 @@ export class SchedulerImpl implements Scheduler {
     this.bpm = bpm;
     const strudel = strudelBridge.getScheduler();
     // Strudel uses cps (cycles per second); 1 cycle = 1 beat at default tempo
-    strudel?.setCps?.(bpm / 60);
+    strudel?.setCps?.(bpm / 60 / 4);
     this.syncStore();
   }
 

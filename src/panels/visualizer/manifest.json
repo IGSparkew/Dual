@@ -1,0 +1,10 @@
+{
+  "id": "visualizer",
+  "name": "Visualizer",
+  "version": "1.0.0",
+  "icon": "♪",
+  "description": "Piano Roll and Drum Grid from Strudel haps",
+  "defaultSlot": "center-top",
+  "minSize": { "width": 400, "height": 200 },
+  "capabilities": ["haps:read", "code:write", "state:read"]
+}

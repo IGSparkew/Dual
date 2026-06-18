@@ -1,0 +1,38 @@
+{
+  "id": "production",
+  "name": "Production",
+  "icon": "🎛",
+  "tree": {
+    "type": "split",
+    "axis": "y",
+    "ratio": 0.88,
+    "children": [
+      {
+        "type": "split",
+        "axis": "x",
+        "ratio": 0.2,
+        "children": [
+          { "type": "panel", "panelId": "session" },
+          {
+            "type": "split",
+            "axis": "x",
+            "ratio": 0.75,
+            "children": [
+              {
+                "type": "split",
+                "axis": "y",
+                "ratio": 0.5,
+                "children": [
+                  { "type": "panel", "panelId": "visualizer" },
+                  { "type": "panel", "panelId": "editor" }
+                ]
+              },
+              { "type": "panel", "panelId": "mixer" }
+            ]
+          }
+        ]
+      },
+      { "type": "panel", "panelId": "transport" }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "live-coding",
+  "name": "Live Coding",
+  "icon": "⌨",
+  "tree": {
+    "type": "split",
+    "axis": "y",
+    "ratio": 0.88,
+    "children": [
+      {
+        "type": "split",
+        "axis": "x",
+        "ratio": 0.5,
+        "children": [
+          { "type": "panel", "panelId": "editor" },
+          { "type": "panel", "panelId": "visualizer" }
+        ]
+      },
+      { "type": "panel", "panelId": "transport" }
+    ]
+  }
+}

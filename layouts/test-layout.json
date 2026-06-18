@@ -1,0 +1,12 @@
+{
+  "id": "mon-setup",
+  "name": "Mon Setup",
+  "icon": "★",
+  "tree": {
+    "type": "split", "axis": "y", "ratio": 0.5,
+    "children": [
+      { "type": "panel", "panelId": "editor" },
+      { "type": "panel", "panelId": "session" }
+    ]
+  }
+}

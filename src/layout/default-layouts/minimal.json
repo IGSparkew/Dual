@@ -1,8 +1,0 @@
-{
-  "id": "minimal",
-  "name": "Minimal",
-  "slots": {
-    "center-top": "editor",
-    "bottom": "transport"
-  }
-}

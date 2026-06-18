@@ -1,0 +1,14 @@
+{
+  "id": "minimal",
+  "name": "Minimal",
+  "icon": "▫",
+  "tree": {
+    "type": "split",
+    "axis": "y",
+    "ratio": 0.88,
+    "children": [
+      { "type": "panel", "panelId": "editor" },
+      { "type": "panel", "panelId": "transport" }
+    ]
+  }
+}

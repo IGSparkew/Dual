@@ -1,9 +1,0 @@
-{
-  "id": "live-coding",
-  "name": "Live Coding",
-  "slots": {
-    "center-top": "editor",
-    "center-bottom": "visualizer",
-    "bottom": "transport"
-  }
-}

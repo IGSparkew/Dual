@@ -1,0 +1,10 @@
+{
+  "id": "editor",
+  "name": "Code Editor",
+  "version": "1.0.0",
+  "icon": "✎",
+  "description": "Strudel pattern code editor",
+  "defaultSlot": "center-bottom",
+  "minSize": { "width": 300, "height": 120 },
+  "capabilities": ["code:read", "code:write"]
+}

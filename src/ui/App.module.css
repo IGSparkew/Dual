@@ -24,10 +24,33 @@
 
 .workspace {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
+}
+
+.layoutSwitcher {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.layoutBtn {
+  padding: 3px 10px;
+  font-size: 11px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.layoutBtn:hover {
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.layoutBtnActive {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .placeholder {

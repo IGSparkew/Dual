@@ -1,12 +1,12 @@
-import { PlaceholderPanel } from '@ui/shared/PlaceholderPanel';
-import type { PanelProps } from '@layout/PanelRegistry';
+﻿import { PlaceholderPanel } from '@ui/shared/PlaceholderPanel';
+import type { PanelProps } from '@layout/registry/PanelRegistry';
 
 export function VisualizerPanel(_: PanelProps) {
   return (
     <PlaceholderPanel
-      icon="♪"
+      icon="â™ª"
       label="Visualizer"
-      description="Piano Roll / Drum Grid — Phase 2"
+      description="Piano Roll / Drum Grid â€” Phase 2"
     />
   );
 }

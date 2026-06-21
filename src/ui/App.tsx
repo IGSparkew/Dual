@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import styles from './App.module.css';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
 import { useStore } from '@core/state/store';
-import { LayoutManager } from '@layout/LayoutManager';
-import { useLayoutRegistry } from '@layout/LayoutRegistryImpl';
+import { LayoutManager } from '@layout/components/LayoutManager';
+import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
 
 // Register all built-in modules
@@ -15,7 +15,7 @@ import '@modules/mixer/index';
 import '@modules/effects/index';
 
 // Load layouts from /layouts/*.json
-import '@layout/layout-loader';
+import '@layout/loaders/layout-loader';
 
 export function App() {
   const engineStatus = useStore((s) => s.engineStatus);

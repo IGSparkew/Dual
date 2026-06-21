@@ -1,4 +1,4 @@
-import { panelRegistry } from '@layout/PanelRegistryImpl';
+﻿import { panelRegistry } from '@layout/registry/PanelRegistryImpl';
 import type { SlotId, PanelCapability } from '@core/types/panel';
 import manifest from './manifest.json';
 import { MixerPanel } from './MixerPanel';

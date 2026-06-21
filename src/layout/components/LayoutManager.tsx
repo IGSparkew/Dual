@@ -1,4 +1,4 @@
-import { layoutRegistry } from './LayoutRegistryImpl';
+import { layoutRegistry } from '../registry/LayoutRegistryImpl';
 import { LayoutRenderer } from './LayoutRenderer';
 import styles from './LayoutManager.module.css';
 

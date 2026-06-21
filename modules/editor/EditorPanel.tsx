@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
-import type { PanelProps } from '@layout/PanelRegistry';
+import type { PanelProps } from '@layout/registry/PanelRegistry';
 import styles from './EditorPanel.module.css';
 
 export function EditorPanel(_: PanelProps) {

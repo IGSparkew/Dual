@@ -1,4 +1,4 @@
-import { layoutRegistry } from '@layout/LayoutRegistryImpl';
+import { layoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import type { LayoutDefinition } from '@core/types/layout';
 
 const modules = import.meta.glob<LayoutDefinition>('/layouts/*.json', {

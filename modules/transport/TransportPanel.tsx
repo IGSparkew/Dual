@@ -1,9 +1,9 @@
-import { useRef } from 'react';
+﻿import { useRef } from 'react';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
 import { scheduler } from '@core/engine/impl/SchedulerImpl';
 import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
 import { useStore } from '@core/state/store';
-import type { PanelProps } from '@layout/PanelRegistry';
+import type { PanelProps } from '@layout/registry/PanelRegistry';
 import styles from './TransportPanel.module.css';
 
 export function TransportPanel({ api }: PanelProps) {
@@ -26,7 +26,7 @@ export function TransportPanel({ api }: PanelProps) {
     try {
       const name = await sampleLoader.registerFile(file);
       api.modifyCode(() => `s("${name}")`);
-      api.showNotification(`"${name}" chargé`, 'success');
+      api.showNotification(`"${name}" chargÃ©`, 'success');
     } catch (err) {
       api.showNotification(`Erreur : ${err}`, 'error');
     }
@@ -36,9 +36,9 @@ export function TransportPanel({ api }: PanelProps) {
   return (
     <div className={styles.bar}>
       <div className={styles.controls}>
-        <button className={styles.btn} onClick={handlePlay} title="Play">▶</button>
-        <button className={styles.btn} onClick={handlePause} title="Pause">⏸</button>
-        <button className={styles.btn} onClick={handleStop} title="Stop">⏹</button>
+        <button className={styles.btn} onClick={handlePlay} title="Play">â–¶</button>
+        <button className={styles.btn} onClick={handlePause} title="Pause">â¸</button>
+        <button className={styles.btn} onClick={handleStop} title="Stop">â¹</button>
       </div>
 
       <div className={styles.divider} />

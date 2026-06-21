@@ -6,13 +6,13 @@ import { LayoutManager } from '@layout/LayoutManager';
 import { useLayoutRegistry } from '@layout/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
 
-// Register all built-in panels
-import '@panels/transport/index';
-import '@panels/editor/index';
-import '@panels/session/index';
-import '@panels/visualizer/index';
-import '@panels/mixer/index';
-import '@panels/effects/index';
+// Register all built-in modules
+import '@modules/transport/index';
+import '@modules/editor/index';
+import '@modules/session/index';
+import '@modules/piano-roll/index';
+import '@modules/mixer/index';
+import '@modules/effects/index';
 
 // Load layouts from /layouts/*.json
 import '@layout/layout-loader';

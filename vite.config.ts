@@ -8,9 +8,8 @@ export default defineConfig({
     alias: {
       '@core': resolve(__dirname, 'src/core'),
       '@layout': resolve(__dirname, 'src/layout'),
-      '@panels': resolve(__dirname, 'src/panels'),
       '@ui': resolve(__dirname, 'src/ui'),
-      '@modules': resolve(__dirname, 'src/modules'),
+      '@modules': resolve(__dirname, 'modules'),
     },
   },
   server: {

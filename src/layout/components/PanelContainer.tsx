@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import { panelRegistry } from './PanelRegistryImpl';
-import { createPanelApi } from './PanelApiImpl';
-import type { PanelApi } from './PanelApi';
+import { panelRegistry } from '../registry/PanelRegistryImpl';
+import { createPanelApi } from '../api/PanelApiImpl';
+import type { PanelApi } from '../api/PanelApi';
 import styles from './PanelContainer.module.css';
 
 interface PanelContainerProps {

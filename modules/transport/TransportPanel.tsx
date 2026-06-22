@@ -1,4 +1,5 @@
-﻿import { useRef } from 'react';
+import { useRef } from 'react';
+import { Play, Pause, Square, FolderOpen } from 'lucide-react';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
 import { scheduler } from '@core/engine/impl/SchedulerImpl';
 import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
@@ -26,7 +27,7 @@ export function TransportPanel({ api }: PanelProps) {
     try {
       const name = await sampleLoader.registerFile(file);
       api.modifyCode(() => `s("${name}")`);
-      api.showNotification(`"${name}" chargÃ©`, 'success');
+      api.showNotification(`"${name}" chargé`, 'success');
     } catch (err) {
       api.showNotification(`Erreur : ${err}`, 'error');
     }
@@ -36,9 +37,15 @@ export function TransportPanel({ api }: PanelProps) {
   return (
     <div className={styles.bar}>
       <div className={styles.controls}>
-        <button className={styles.btn} onClick={handlePlay} title="Play">â–¶</button>
-        <button className={styles.btn} onClick={handlePause} title="Pause">â¸</button>
-        <button className={styles.btn} onClick={handleStop} title="Stop">â¹</button>
+        <button className={styles.btn} onClick={handlePlay} title="Play">
+          <Play size={14} />
+        </button>
+        <button className={styles.btn} onClick={handlePause} title="Pause">
+          <Pause size={14} />
+        </button>
+        <button className={styles.btn} onClick={handleStop} title="Stop">
+          <Square size={14} />
+        </button>
       </div>
 
       <div className={styles.divider} />
@@ -70,7 +77,8 @@ export function TransportPanel({ api }: PanelProps) {
         onClick={() => fileInputRef.current?.click()}
         title="Charger un sample"
       >
-        + Sample
+        <FolderOpen size={14} />
+        <span>Sample</span>
       </button>
       <input
         ref={fileInputRef}

@@ -2,7 +2,7 @@
   "id": "transport",
   "name": "Transport",
   "version": "1.0.0",
-  "icon": "⏱",
+  "icon": "Clock",
   "description": "Playback controls: play, pause, stop, BPM",
   "defaultSlot": "bottom",
   "minSize": { "width": 300, "height": 60 },

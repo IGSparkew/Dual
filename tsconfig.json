@@ -20,11 +20,10 @@
     "paths": {
       "@core/*": ["src/core/*"],
       "@layout/*": ["src/layout/*"],
-      "@panels/*": ["src/panels/*"],
       "@ui/*": ["src/ui/*"],
-      "@modules/*": ["src/modules/*"]
+      "@modules/*": ["modules/*"]
     }
   },
-  "include": ["src", "src/strudel.d.ts"],
+  "include": ["src", "src/strudel.d.ts", "modules"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

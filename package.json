@@ -16,16 +16,19 @@
     "@strudel/transpiler": "^1.0.0",
     "@strudel/webaudio": "^1.0.0",
     "@uiw/react-codemirror": "^4.23.0",
+    "lucide-react": "^1.21.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "superdough": "^1.0.0",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@types/escodegen": "^0.0.10",
+    "@types/node": "^26.0.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.5.4",
-    "vite": "^5.4.2"
+    "vite": "^8.0.16"
   }
 }

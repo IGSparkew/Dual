@@ -74,20 +74,21 @@ src/
 │   ├── SplitPane.tsx            # Split redimensionnable
 │   └── default-layouts/         # production.json, live-coding.json, mixing.json, minimal.json
 │
-├── panels/                      # Panneaux built-in (chacun = module autonome)
-│   ├── session/                 # Session View — grille de clips
-│   ├── editor/                  # Code Editor — CodeMirror + coloration Strudel
-│   ├── visualizer/              # Piano Roll + Drum Grid — Canvas 2D
-│   ├── mixer/                   # Mixer — faders, knobs, meters
-│   ├── effects/                 # FX Rack — chaîne d'effets visuelle
-│   ├── automation/              # Automation — courbes → patterns Strudel
-│   ├── browser/                 # Browser — samples + chopper
-│   └── transport/               # Transport — play/pause/stop/BPM
-│
-├── ui/                          # Shell (App.tsx) + composants partagés
-│   └── shared/                  # Button, Slider, Dropdown, Modal, ContextMenu, Tooltip, DragDrop
-│
-└── modules/                     # Système de modules externes (loader, sandbox, permissions)
+└── ui/                          # Shell (App.tsx) + composants partagés
+    └── shared/                  # Button, Slider, Dropdown, Modal, ContextMenu, Tooltip, DragDrop
+
+modules/      # Modules graphiques (built-in + utilisateurs) — chargés dynamiquement
+├── session/                 # Session View — grille de clips
+├── editor/                  # Code Editor — CodeMirror + coloration Strudel
+├── piano-roll/              # Piano Roll — Canvas 2D, édition de notes
+├── drum-grid/               # Drum Grid — Canvas 2D, grille rythmique
+├── mixer/                   # Mixer — faders, knobs, meters
+├── mixer-track/             # Mixer Track — strip individuel par canal
+├── effects/                 # FX Rack — chaîne d'effets visuelle
+├── automation/              # Automation — courbes → patterns Strudel
+├── browser/                 # Browser — samples + chopper
+├── transport/               # Transport — play/pause/stop/BPM
+└── [user-modules]/          # Modules créés par les utilisateurs (même API, même structure)
 
 config/       # app.json, keybindings.json, default-layout.json
 presets/      # Presets effets + instruments (JSON)
@@ -120,7 +121,7 @@ Toujours utiliser les alias Vite :
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
 import type { PanelApi } from '@layout/PanelApi';
-import { PianoRoll } from '@panels/visualizer/PianoRoll';
+import { PianoRoll } from '@modules/piano-roll/PianoRoll';
 import { Button } from '@ui/Button';
 ```
 
@@ -165,9 +166,9 @@ Les composants React (panneaux, UI partagée) n'utilisent **pas** ce pattern —
 
 ---
 
-## Panel System
+## Module System
 
-### Chaque panneau a un manifest + s'enregistre dans le registry
+### Chaque module a un manifest + s'enregistre dans le registry
 
 ```json
 {
@@ -183,7 +184,7 @@ Les composants React (panneaux, UI partagée) n'utilisent **pas** ce pattern —
 ```
 
 ```ts
-// src/panels/visualizer/index.ts
+// modules/piano-roll/index.ts
 import { panelRegistry } from '@layout/PanelRegistryImpl';
 import manifest from './manifest.json';
 import { PianoRoll } from './PianoRoll';
@@ -193,9 +194,9 @@ panelRegistry.register({ ...manifest, component: PianoRoll });
 
 ### Règle clé
 
-Les panneaux built-in s'enregistrent **exactement** comme les plugins tiers. Même API, même cycle de vie, même manifest. Tout ce qu'un composant interne peut faire, un plugin peut le faire aussi.
+Les modules built-in s'enregistrent **exactement** comme les modules utilisateurs. Même API, même cycle de vie, même manifest. Tout ce qu'un module interne peut faire, un module utilisateur peut le faire aussi.
 
-### Panel API (SDK injecté dans chaque panneau)
+### Module API (SDK injecté dans chaque module)
 
 ```ts
 panelAPI.subscribeToHaps(callback)       // Receive haps on each evaluation
@@ -210,21 +211,21 @@ panelAPI.showNotification(message, type)  // UI notification
 
 ### Extension Slots
 
-Points d'injection dans les composants existants. Built-in et tiers injectent dans les mêmes slots :
+Points d'injection dans les modules existants. Modules built-in et utilisateurs injectent dans les mêmes slots :
 
 `toolbar:left`, `toolbar:right`, `context-menu:clip`, `context-menu:note`, `channel-strip:top`, `channel-strip:bottom`, `fx-rack:slot`, `browser:actions`, `status-bar`
 
 ---
 
-## Événements inter-panneaux
+## Événements inter-modules
 
 | Événement | Payload | Émetteur |
 |---|---|---|
 | `haps:updated` | `{ haps, source }` | Engine |
 | `code:changed` | `{ code, origin }` | Code Editor |
 | `clip:selected` | `{ clipId, patternCode }` | Session View |
-| `note:created` | `{ note, begin, end }` | Piano Roll / Drum Grid |
-| `note:deleted` | `{ note, begin, end }` | Piano Roll / Drum Grid |
+| `note:created` | `{ note, begin, end }` | Piano Roll / Drum Grid modules |
+| `note:deleted` | `{ note, begin, end }` | Piano Roll / Drum Grid modules |
 | `transport:state` | `{ playing, bpm, position }` | Transport |
 | `mixer:changed` | `{ clipId, param, value }` | Mixer |
 | `fx:changed` | `{ clipId, fxChain }` | FX Rack |
@@ -285,7 +286,7 @@ Le code est évalué via `@strudel/transpiler`. Les patterns retournent des **ha
 4. **Phase 4 (sem. 15–18)** — Effets & Presets : effets intégrés, chaînes, presets JSON, enveloppes
 5. **Phase 5 (sem. 19–22)** — Automations : éditeur d'automation, automation clip/globale, dessin libre → pattern
 6. **Phase 6 (sem. 23–27)** — Samples & Projet : browser, import, sample chopper, preview
-7. **Phase 7 (sem. 28–32)** — Modules externes : loader, sandbox, SDK docs, marketplace
+7. **Phase 7 (sem. 28–32)** — Modules utilisateurs : loader dynamique, sandbox, SDK docs, marketplace
 
 **Priorités** : `CRITIQUE` (bloquant) > `HAUTE` (core) > `MOYENNE` (non bloquant) > `BASSE` (futur)
 

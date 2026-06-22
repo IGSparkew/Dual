@@ -1,12 +1,12 @@
-﻿import { PlaceholderPanel } from '@ui/shared/PlaceholderPanel';
+import { PlaceholderPanel } from '@ui/shared/PlaceholderPanel';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 
 export function SessionPanel(_: PanelProps) {
   return (
     <PlaceholderPanel
-      icon="â–¦"
+      icon="LayoutGrid"
       label="Session View"
-      description="Clip grid â€” Phase 1"
+      description="Clip grid — Phase 1"
     />
   );
 }

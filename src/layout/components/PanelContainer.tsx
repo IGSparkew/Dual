@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { panelRegistry } from '../registry/PanelRegistryImpl';
 import { createPanelApi } from '../api/PanelApiImpl';
 import type { PanelApi } from '../api/PanelApi';
+import { PanelIcon } from './PanelIcon';
 import styles from './PanelContainer.module.css';
 
 interface PanelContainerProps {
@@ -29,7 +30,7 @@ export function PanelContainer({ panelId }: PanelContainerProps) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={styles.icon}>{icon}</span>
+        <span className={styles.icon}><PanelIcon name={icon ?? ''} /></span>
         <span className={styles.name}>{name}</span>
       </div>
       <div className={styles.content}>

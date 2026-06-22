@@ -2,7 +2,7 @@
   "id": "session",
   "name": "Session View",
   "version": "1.0.0",
-  "icon": "▦",
+  "icon": "LayoutGrid",
   "description": "Clip grid — launch patterns in real time",
   "defaultSlot": "left",
   "minSize": { "width": 160, "height": 200 },

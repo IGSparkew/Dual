@@ -1,0 +1,10 @@
+{
+  "id": "transport",
+  "name": "Transport",
+  "version": "1.0.0",
+  "icon": "Clock",
+  "description": "Playback controls: play, pause, stop, BPM",
+  "defaultSlot": "bottom",
+  "minSize": { "width": 300, "height": 60 },
+  "capabilities": ["state:read", "state:write"]
+}

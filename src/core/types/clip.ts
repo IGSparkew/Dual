@@ -4,6 +4,8 @@ export interface Clip {
   code: string;
   trackId: string;
   color?: string;
+  isPlaying: boolean;
+  isMuted: boolean;
 }
 
 export interface Track {

@@ -4,7 +4,8 @@ import { useStore } from "@core/state/store";
 
 const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput, samples } =
   await import('@strudel/webaudio');
-const { repl, evalScope, evaluate: strudelEvaluate } = await import('@strudel/core');
+const { repl, evalScope } = await import('@strudel/core');
+const { evaluate: strudelEvaluate } = await import('@strudel/transpiler');
 const miniModule = await import('@strudel/mini');
 const core = await import('@strudel/core');
 
@@ -61,6 +62,8 @@ export class StrudelBridgeImpl implements StrudelBridge {
   }
 
   async evaluate(code: string): Promise<any> {
+    if (!code.trim()) return null;
+
     if (!this.initialized) {
       await this.init();
     }
@@ -70,12 +73,7 @@ export class StrudelBridgeImpl implements StrudelBridge {
       scopeReady = true;
     }
 
-    const transpiled = code.replace(
-      /"([^"]*(?:\[[^\]]*\])*[^"]*)"/g,
-      'mini("$1")'
-    );
-
-    const result = await strudelEvaluate(transpiled);
+    const result = await strudelEvaluate(code);
     this.currentPattern = result?.pattern ?? result;
 
     if (this.replInstance && this.currentPattern?.queryArc) {

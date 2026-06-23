@@ -29,6 +29,7 @@ export function EditorPanel(_: PanelProps) {
   const handleChange = (value: string) => {
     setLocalCode(value);
     useStore.getState().setActiveCode(value);
+    eventBus.emit('code:changed', { code: value, origin: 'user_edit' });
     syncController.notify('user_edit', value);
   };
 

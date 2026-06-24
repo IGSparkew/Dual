@@ -1,36 +1,35 @@
-import { SessionGridProps } from "../types/SessionGridProps";
+import type { SessionGridProps } from '../types/SessionGridProps';
 import styles from '../SessionPanel.module.css';
-import { Clip } from "./Clip";
+import { Clip } from './Clip';
 
 export function SessionGrid(props: SessionGridProps) {
-    return (
-        <div className={styles.scrollArea}>
-            {props.tracks.map(track => (
-                <div className={styles.row} key={track.id}>
-                    <div className={styles.trackHeader}>
-                        <div className={styles.trackColor} />
-                        <span className={styles.trackName}>
-                            {track.name}
-                        </span>
-                    </div>
-                    <div className={styles.clips}>
-                        {track.clips.map(clip => (
-                            <Clip
-                                key={clip.id}
-                                clip={clip}
-                                isSelected={clip.id === props.selectedClipId}
-                                onSelect={() => props.onSelectClip(clip)}
-                                onRename={(name) => props.onRenameClip(clip, name)}
-                            />
-                        ))}
-                    </div>
-                </div>
-            ))}
-            {props.tracks.length === 0 && (
-                <div className={styles.empty}>
-                    <span className={styles.emptyLabel}>Aucune track — clique sur "+ Track"</span>
-                </div>
-            )}
+  const playing = new Set(props.playing);
+  const selection = new Set(props.selection);
+
+  return (
+    <div className={styles.scrollArea}>
+      {props.clips.length === 0 ? (
+        <div className={styles.empty}>
+          <span className={styles.emptyLabel}>Aucun clip — clique sur « + Clip »</span>
         </div>
-    )
+      ) : (
+        <div className={styles.clips}>
+          {props.clips.map((clip) => (
+            <Clip
+              key={clip.name}
+              clip={clip}
+              label={props.labels[clip.name] ?? clip.name}
+              isPlaying={playing.has(clip.name)}
+              isSelected={selection.has(clip.name)}
+              isFocused={clip.name === props.focused}
+              launchEnabled={props.launchEnabled}
+              onSelect={(additive) => props.onSelect(clip, additive)}
+              onLaunch={() => props.onLaunch(clip)}
+              onRename={(label) => props.onRename(clip, label)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

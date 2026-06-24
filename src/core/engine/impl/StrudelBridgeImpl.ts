@@ -5,7 +5,7 @@ import { useStore } from "@core/state/store";
 const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput, samples } =
   await import('@strudel/webaudio');
 const { repl, evalScope } = await import('@strudel/core');
-const { evaluate: strudelEvaluate } = await import('@strudel/transpiler');
+const { transpiler } = await import('@strudel/transpiler');
 const miniModule = await import('@strudel/mini');
 const core = await import('@strudel/core');
 
@@ -39,6 +39,9 @@ export class StrudelBridgeImpl implements StrudelBridge {
         this.replInstance = repl({
           defaultOutput: webaudioOutput,
           getTime: () => this.audioContext!.currentTime,
+          // The transpiler converts Strudel sugar (mini-notation, `$:` →
+          // `.p('$')`) before evaluation; without it `$:` lines are dead.
+          transpiler,
         });
 
         if (this.audioContext?.state !== 'running') {
@@ -67,19 +70,19 @@ export class StrudelBridgeImpl implements StrudelBridge {
     if (!this.initialized) {
       await this.init();
     }
+    if (!this.replInstance) return null;
 
     if (!scopeReady) {
       await evalScope(core, miniModule);
       scopeReady = true;
     }
 
-    const result = await strudelEvaluate(code);
-    this.currentPattern = result?.pattern ?? result;
-
-    if (this.replInstance && this.currentPattern?.queryArc) {
-      this.replInstance.scheduler.setPattern(this.currentPattern);
-    }
-
+    // repl.evaluate runs the full Strudel pipeline: it registers `.p`/`setcpm`
+    // into the eval scope, transpiles, stacks the `$:` named outputs and pushes
+    // the pattern to the scheduler. Pass `autostart = false` so re-evaluating on
+    // code edits updates the pattern without forcing playback — the transport
+    // controls play/pause explicitly.
+    this.currentPattern = (await this.replInstance.evaluate(code, false)) ?? null;
     return this.currentPattern;
   }
 

@@ -1,8 +1,13 @@
-import { Clip, Track } from "@core/types/clip";
+import type { RawClip } from '../session-model';
 
 export interface SessionGridProps {
-  tracks: Track[];
-  selectedClipId: string | null;
-  onSelectClip: (clip: Clip) => void;
-  onRenameClip: (clip: Clip, name: string) => void;
+  clips: RawClip[];
+  labels: Record<string, string>;
+  playing: string[];
+  selection: string[];
+  focused: string | null;
+  launchEnabled: boolean;
+  onSelect: (clip: RawClip, additive: boolean) => void;
+  onLaunch: (clip: RawClip) => void;
+  onRename: (clip: RawClip, label: string) => void;
 }

@@ -1,8 +1,13 @@
-import { Clip } from "@core/types/clip";
+import type { RawClip } from '../session-model';
 
 export interface ClipCellProps {
-    clip: Clip;
-    isSelected: boolean;
-    onSelect: () => void;
-    onRename: (name: string) => void;
+  clip: RawClip;
+  label: string;
+  isPlaying: boolean;
+  isSelected: boolean;
+  isFocused: boolean;
+  launchEnabled: boolean;
+  onSelect: (additive: boolean) => void;
+  onLaunch: () => void;
+  onRename: (label: string) => void;
 }

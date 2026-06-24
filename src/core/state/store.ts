@@ -10,6 +10,10 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+/** Which output the document currently projects. Lives in state, never in the
+ *  document: the `.strudel` only ever holds the active mode's output. */
+export type OutputMode = 'session' | 'arrangement';
+
 export interface AppState {
   transport: TransportState;
   tracks: Track[];
@@ -17,6 +21,10 @@ export interface AppState {
   haps: Hap[];
   engineStatus: EngineStatus;
   notifications: Notification[];
+  outputMode: OutputMode;
+  /** Last known `arrange(...)` source — dormant memory across a mode round-trip
+   *  (the `$:` block is trivially regenerable from the grid, the arrange is not). */
+  arrangementCode: string;
 
   setTransport: (state: Partial<TransportState>) => void;
   setActiveCode: (code: string) => void;
@@ -24,6 +32,8 @@ export interface AppState {
   setEngineStatus: (status: EngineStatus) => void;
   addNotification: (message: string, type?: Notification['type']) => void;
   removeNotification: (id: string) => void;
+  setOutputMode: (mode: OutputMode) => void;
+  setArrangementCode: (code: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -33,6 +43,8 @@ export const useStore = create<AppState>((set) => ({
   haps: [],
   engineStatus: 'init',
   notifications: [],
+  outputMode: 'session',
+  arrangementCode: '',
 
   setTransport: (partial) =>
     set((s) => ({ transport: { ...s.transport, ...partial } })),
@@ -48,4 +60,6 @@ export const useStore = create<AppState>((set) => ({
     })),
   removeNotification: (id) =>
     set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
+  setOutputMode: (mode) => set({ outputMode: mode }),
+  setArrangementCode: (code) => set({ arrangementCode: code }),
 }));

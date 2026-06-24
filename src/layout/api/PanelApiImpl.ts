@@ -1,11 +1,29 @@
-import type { PanelApi, NotificationType } from './PanelApi';
+import type { PanelApi, NotificationType, PanelCodeApi } from './PanelApi';
 import type { Hap } from '@core/types/hap';
 import type { AppState } from '@core/state/store';
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
 import type { EventMap, EventType } from '@core/events/event-types';
+import { codeRegion } from '@core/interpreter/impl/CodeRegionImpl';
+import { syncController } from '@core/interpreter/impl/SyncControllerImpl';
+
+/** Façade over the CodeRegion service for a single panel. */
+const codeApi: PanelCodeApi = {
+  current: () => useStore.getState().activeCode,
+  readClips: (code) => codeRegion.readClips(code),
+  readExpr: (source) => codeRegion.readExpr(source),
+  locateOutput: (code) => codeRegion.locateOutput(code),
+  validateGraph: (clips) => codeRegion.validateGraph(clips),
+  spliceSpan: (code, start, end, replacement) =>
+    codeRegion.spliceSpan(code, start, end, replacement),
+  // A ui_action notify already updates the store, mirrors the editor and
+  // re-evaluates audio (SyncControllerImpl._evaluateImmediate).
+  write: (code) => syncController.notify('ui_action', code),
+};
 
 class PanelApiImpl implements PanelApi {
+  readonly code = codeApi;
+
   constructor(readonly panelId: string) {}
 
   subscribeToHaps(callback: (haps: Hap[]) => void): () => void {

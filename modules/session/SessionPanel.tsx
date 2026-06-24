@@ -1,198 +1,293 @@
 import type { PanelProps } from '@layout/registry/PanelRegistry';
-import { useEffect, useRef, useState } from 'react';
-import type { Clip, Track } from '@core/types/clip';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useStore } from '@core/state/store';
+import type { GraphError } from '@core/interpreter/CodeRegion';
 import { SessionToolbar } from './components/SessionToolBar';
 import { SessionGrid } from './components/SessionGrid';
-import { parseCodeToTracks, type ParsedTrack } from './session-code-parser';
+import {
+  buildGroup,
+  buildLeaf,
+  clipsReferencing,
+  deriveClips,
+  dollarRefs,
+  flipGate,
+  gateName,
+  insertConst,
+  provisionGate,
+  removeClip,
+  reprojectDollar,
+  toArrangement,
+  toSession,
+  uniqueName,
+  type RawClip,
+} from './session-model';
 import styles from './SessionPanel.module.css';
 
-/** Effective code for a clip: muted clips are silenced with `.gain(0)`. */
-function clipCode(clip: Clip): string {
-  if (!clip.isMuted) return clip.code;
-  return /\.gain\(0\)\s*$/.test(clip.code) ? clip.code : `${clip.code}.gain(0)`;
-}
-
-/** Code for a single track: bare clip if one, else its own `stack(...)`. */
-function trackToCode(clips: Clip[], wrapSingle: boolean): string {
-  if (clips.length === 1 && !wrapSingle) return clipCode(clips[0]);
-  return `stack(${clips.map(clipCode).join(', ')})`;
-}
-
 /**
- * Build the editor code from the tracks using the nested-stack convention.
- * Each track with multiple tracks present is wrapped in its own `stack(...)`
- * so the parser can recover the track structure unambiguously.
+ * Session View — first consumer of the CodeRegion socle.
+ *
+ * The clip is a named `const`; the grid reconciles by name (never by position),
+ * owns only the gate (`NAME_ON`) and the live `$:` projection, and edits the
+ * document by splices that leave the preamble and clip content intact. The
+ * editor always shows the whole project — selecting a clip never rewrites it.
  */
-function buildGlobalCode(tracks: Track[]): string {
-  const nonEmpty = tracks.filter(t => t.clips.length > 0);
-  if (nonEmpty.length === 0) return '';
-
-  if (nonEmpty.length === 1) {
-    const clips = nonEmpty[0].clips;
-    if (clips.length === 1) return clipCode(clips[0]);
-    return `stack(\n${clips.map(c => `  ${clipCode(c)}`).join(',\n')}\n)`;
-  }
-
-  // Multiple tracks → wrap each track in its own stack (even single-clip ones)
-  const trackCodes = nonEmpty.map(t => trackToCode(t.clips, true));
-  return `stack(\n${trackCodes.map(tc => `  ${tc}`).join(',\n')}\n)`;
-}
-
-/**
- * Reconcile the visual tracks with the tracks parsed from the editor. Existing
- * tracks and clips are matched by position so their IDs/names survive edits.
- * Trailing empty tracks (created via the UI, with no code representation) are
- * preserved.
- */
-function reconcileTracksWithCodes(tracks: Track[], parsed: ParsedTrack[]): Track[] {
-  const now = Date.now();
-
-  const result: Track[] = parsed.map((clipCodes, ti) => {
-    const existingTrack = tracks[ti];
-    const trackId = existingTrack?.id ?? `track-${now}-${ti}`;
-    const trackName = existingTrack?.name ?? `Track ${ti + 1}`;
-    const clips: Clip[] = clipCodes.map((rawCode, ci) => {
-      // A trailing `.gain(0)` means the clip is muted — strip it so clip.code
-      // stays clean and the mute lives in the isMuted flag.
-      const isMuted = /\.gain\(0\)\s*$/.test(rawCode);
-      const code = isMuted ? rawCode.replace(/\.gain\(0\)\s*$/, '') : rawCode;
-      const prev = existingTrack?.clips[ci];
-      if (prev) return { ...prev, code, trackId, isMuted };
-      return {
-        id: `clip-${now}-${ti}-${ci}`,
-        name: `Clip ${ci + 1}`,
-        code,
-        trackId,
-        isPlaying: false,
-        isMuted,
-      };
-    });
-    return { id: trackId, name: trackName, clips };
-  });
-
-  // Keep trailing empty tracks the user created — code can't encode them.
-  const trailingEmpty = tracks.slice(parsed.length).filter(t => t.clips.length === 0);
-  return [...result, ...trailingEmpty];
-}
-
 export function SessionPanel({ api }: PanelProps) {
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  // Keeps the last known global code so we can restore it on deselect
-  const globalCodeRef = useRef('');
+  const [clips, setClips] = useState<RawClip[]>([]);
+  const [errors, setErrors] = useState<GraphError[]>([]);
+  const [complexDollar, setComplexDollar] = useState(false);
 
-  // Sync editor → clip or global state
-  useEffect(() => {
-    return api.on('code:changed', ({ code, origin }) => {
-      if (origin !== 'user_edit') return;
+  // Display labels are cosmetic local state, keyed by the immutable code name.
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  // Multi-selection (for grouping) and the focused clip (for mute / highlight).
+  const [selection, setSelection] = useState<string[]>([]);
+  const [focused, setFocused] = useState<string | null>(null);
 
-      if (!selectedClipId) {
-        // Global mode: parse the editor code back into tracks/clips
-        globalCodeRef.current = code;
-        const parsed = parseCodeToTracks(code);
-        if (parsed === null) return; // incomplete/invalid — keep current clips
-        setTracks(prev => reconcileTracksWithCodes(prev, parsed));
-        return;
+  const outputMode = useStore((s) => s.outputMode);
+
+  // The set of active (playing) clips. In session mode it mirrors the `$:`
+  // block; in arrangement mode (no `$:`) it survives in this ref alone.
+  const playingRef = useRef<string[]>([]);
+  const [playing, setPlayingState] = useState<string[]>([]);
+  const setPlaying = (names: string[]) => {
+    playingRef.current = names;
+    setPlayingState(names);
+  };
+
+  const frozen = errors.length > 0;
+
+  /** Re-derive the whole model from the current document. */
+  const refresh = useCallback(() => {
+    const code = api.code.current();
+    const defs = api.code.readClips(code);
+    if (defs === null) return; // parse error — keep the current view
+
+    const raw = deriveClips(api.code, defs);
+    const errs = api.code.validateGraph(defs);
+    const mode = useStore.getState().outputMode;
+
+    if (mode === 'session') {
+      const d = dollarRefs(api.code, code);
+      setPlaying(d.names);
+      setComplexDollar(d.complex);
+      const clipNames = new Set(raw.map((c) => c.name));
+      for (const ref of d.names) {
+        if (!clipNames.has(ref)) {
+          errs.push({
+            kind: 'dead-ref',
+            name: '$:',
+            ref,
+            message: `La sortie référence « ${ref} », qui n'existe pas.`,
+          });
+        }
       }
+    } else {
+      setComplexDollar(false);
+    }
 
-      // Clip mode: update the selected clip and rebuild global code
-      setTracks(prev => {
-        const next = prev.map(t => ({
-          ...t,
-          clips: t.clips.map(c => (c.id === selectedClipId ? { ...c, code } : c)),
-        }));
-        globalCodeRef.current = buildGlobalCode(next);
-        return next;
-      });
+    setClips(raw);
+    setErrors(errs);
+  }, [api]);
+
+  useEffect(() => {
+    refresh();
+    return api.on('code:changed', ({ origin }) => {
+      // ui_action changes are our own writes (already reflected); only react to
+      // the user editing the document by hand.
+      if (origin === 'user_edit') refresh();
     });
-  }, [selectedClipId]);
+  }, [api, refresh]);
 
-  const handleAddTrack = () => {
-    const newTrack: Track = {
-      id: `track-${Date.now()}`,
-      name: `Track ${tracks.length + 1}`,
-      clips: [],
-    };
-    setTracks(prev => [...prev, newTrack]);
+  /** Apply new document text (re-evaluates audio) and re-derive the model. */
+  const apply = (code: string) => {
+    api.code.write(code);
+    refresh();
   };
 
-  const handleAddClip = () => {
-    if (tracks.length === 0) return;
-    const targetTrack = tracks[tracks.length - 1];
-    const newClip: Clip = {
-      id: `clip-${Date.now()}`,
-      name: `Clip ${targetTrack.clips.length + 1}`,
-      code: 's("bd")',
-      trackId: targetTrack.id,
-      isPlaying: false,
-      isMuted: false,
-    };
-    const newTracks = tracks.map(t =>
-      t.id === targetTrack.id ? { ...t, clips: [...t.clips, newClip] } : t
-    );
-    setTracks(newTracks);
-    // Deselect and show updated global code
-    setSelectedClipId(null);
-    const code = buildGlobalCode(newTracks);
-    globalCodeRef.current = code;
-    api.modifyCode(() => code);
-  };
+  // ─── Selection ─────────────────────────────────────────────────────────────
 
-  const handleSelectClip = (clip: Clip) => {
-    if (selectedClipId === clip.id) {
-      // Deselect: restore global code view
-      setSelectedClipId(null);
-      api.modifyCode(() => globalCodeRef.current);
+  const handleSelect = (clip: RawClip, additive: boolean) => {
+    if (additive) {
+      setSelection((prev) =>
+        prev.includes(clip.name)
+          ? prev.filter((n) => n !== clip.name)
+          : [...prev, clip.name],
+      );
+      setFocused(clip.name);
       return;
     }
-    setSelectedClipId(clip.id);
-    api.modifyCode(() => clip.code);
-    api.emit('clip:selected', { clipId: clip.id, patternCode: clip.code });
+    setSelection([clip.name]);
+    setFocused(clip.name);
+    api.emit('clip:selected', { clipId: clip.name, patternCode: clip.source });
   };
 
-  const handleRenameClip = (clip: Clip, name: string) => {
-    setTracks(prev =>
-      prev.map(t => ({
-        ...t,
-        clips: t.clips.map(c => (c.id === clip.id ? { ...c, name } : c)),
-      }))
-    );
+  // ─── Launch (session mode only) ─────────────────────────────────────────────
+
+  const handleLaunch = (clip: RawClip) => {
+    if (frozen || complexDollar || outputMode !== 'session') return;
+    const set = new Set(playingRef.current);
+    set.has(clip.name) ? set.delete(clip.name) : set.add(clip.name);
+    const names = clips.map((c) => c.name).filter((n) => set.has(n));
+    apply(reprojectDollar(api.code, api.code.current(), names));
   };
+
+  // ─── Mute (gate flip on the focused clip) ───────────────────────────────────
 
   const handleToggleMute = () => {
-    if (!selectedClipId) return;
-    setTracks(prev => {
-      const next = prev.map(t => ({
-        ...t,
-        clips: t.clips.map(c =>
-          c.id === selectedClipId ? { ...c, isMuted: !c.isMuted } : c
-        ),
-      }));
-      // Keep the global code in sync; the active clip view stays unchanged.
-      globalCodeRef.current = buildGlobalCode(next);
-      return next;
-    });
+    if (frozen || !focused) return;
+    const clip = clips.find((c) => c.name === focused);
+    if (!clip) return;
+    const code = api.code.current();
+    const def = api.code.readClips(code)?.find((d) => d.name === focused);
+    if (!def) return;
+
+    if (!clip.hasGate) {
+      // First mute on a hand-written clip: add the gate machinery (muted).
+      apply(provisionGate(api.code, code, def));
+      return;
+    }
+    const gateDef = (api.code.readClips(code) ?? []).find((d) => d.name === gateName(focused));
+    if (!gateDef) return;
+    apply(flipGate(code, gateDef, clip.isMuted ? 1 : 0));
   };
 
-  const selectedClip =
-    selectedClipId !== null
-      ? tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId) ?? null
-      : null;
+  // ─── Create clip ────────────────────────────────────────────────────────────
+
+  const handleAddClip = () => {
+    if (frozen) return;
+    const code = api.code.current();
+    const name = uniqueName(clips.map((c) => c.name));
+    apply(insertConst(api.code, code, buildLeaf(name, 's("bd")')));
+  };
+
+  // ─── Group / ungroup ────────────────────────────────────────────────────────
+
+  const handleGroup = () => {
+    if (frozen) return;
+    const members = selection.slice();
+    if (members.length < 2) {
+      api.showNotification('Sélectionne au moins 2 clips à grouper', 'warning');
+      return;
+    }
+    const code = api.code.current();
+    const defs = api.code.readClips(code) ?? [];
+    const name = uniqueName(defs.map((d) => d.name), 'group');
+    // Validate the prospective graph (group declared last, after its members).
+    const prospective = [
+      ...defs,
+      { name, source: `stack(${members.join(', ')})`, refs: members, start: code.length, end: code.length },
+    ];
+    const errs = api.code.validateGraph(prospective);
+    if (errs.length) {
+      api.showNotification(errs[0].message, 'error');
+      return;
+    }
+    setSelection([]);
+    apply(insertConst(api.code, code, buildGroup(name, members)));
+  };
+
+  // Shared removal: refuse if another clip references it (would leave a dead
+  // ref), unproject it, then delete its const + gate/gain consts.
+  const removeClipByName = (name: string) => {
+    const referencers = clipsReferencing(clips, name);
+    if (referencers.length) {
+      api.showNotification(
+        `Impossible : « ${name} » est utilisé par ${referencers.join(', ')}`,
+        'error',
+      );
+      return;
+    }
+    const next = removeClip(api.code, api.code.current(), name, playingRef.current);
+    setSelection((s) => s.filter((n) => n !== name));
+    if (focused === name) setFocused(null);
+    apply(next);
+  };
+
+  const handleDelete = () => {
+    if (frozen || !focused) return;
+    removeClipByName(focused);
+  };
+
+  const handleUngroup = () => {
+    if (frozen || !focused) return;
+    const clip = clips.find((c) => c.name === focused);
+    if (!clip || !clip.isGroup) {
+      api.showNotification('Sélectionne un groupe à dégrouper', 'warning');
+      return;
+    }
+    removeClipByName(focused);
+  };
+
+  // ─── Rename (label only — never touches code) ───────────────────────────────
+
+  const handleRename = (clip: RawClip, label: string) => {
+    setLabels((prev) => ({ ...prev, [clip.name]: label }));
+  };
+
+  // ─── Mode switch (state + output splice) ────────────────────────────────────
+
+  const handleToggleMode = () => {
+    if (frozen) return;
+    const code = api.code.current();
+    const store = useStore.getState();
+    if (outputMode === 'session') {
+      const next = toArrangement(api.code, code, playingRef.current, store.arrangementCode);
+      store.setOutputMode('arrangement');
+      apply(next);
+    } else {
+      const { code: next, captured } = toSession(api.code, code, playingRef.current);
+      if (captured) store.setArrangementCode(captured);
+      store.setOutputMode('session');
+      apply(next);
+    }
+  };
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
+  const focusedClip = focused ? clips.find((c) => c.name === focused) ?? null : null;
 
   return (
     <div className={styles.panel}>
       <SessionToolbar
-        onAddTrack={handleAddTrack}
+        outputMode={outputMode}
+        onToggleMode={handleToggleMode}
         onAddClip={handleAddClip}
+        onGroup={handleGroup}
+        onUngroup={handleUngroup}
         onToggleMute={handleToggleMute}
-        muteDisabled={selectedClip === null}
-        muteActive={selectedClip?.isMuted ?? false}
+        onDelete={handleDelete}
+        groupDisabled={frozen || selection.length < 2}
+        ungroupDisabled={frozen || !focusedClip?.isGroup}
+        muteDisabled={frozen || !focusedClip}
+        muteActive={focusedClip?.isMuted ?? false}
+        deleteDisabled={frozen || !focusedClip}
+        addDisabled={frozen}
       />
+
+      {frozen && (
+        <div className={styles.errorBanner} role="alert">
+          <span className={styles.errorTitle}>Graphe invalide — panneau gelé</span>
+          {errors.slice(0, 4).map((e, i) => (
+            <span key={i} className={styles.errorLine}>{e.message}</span>
+          ))}
+        </div>
+      )}
+
+      {!frozen && complexDollar && (
+        <div className={styles.infoBanner}>
+          Sortie <code>$:</code> éditée à la main — lancement désactivé.
+        </div>
+      )}
+
       <SessionGrid
-        tracks={tracks}
-        selectedClipId={selectedClipId}
-        onSelectClip={handleSelectClip}
-        onRenameClip={handleRenameClip}
+        clips={clips}
+        labels={labels}
+        playing={playing}
+        selection={selection}
+        focused={focused}
+        launchEnabled={!frozen && !complexDollar && outputMode === 'session'}
+        onSelect={handleSelect}
+        onLaunch={handleLaunch}
+        onRename={handleRename}
       />
     </div>
   );

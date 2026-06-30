@@ -9,15 +9,24 @@ import { syncController } from '@core/interpreter/impl/SyncControllerImpl';
 
 /** Façade over the CodeRegion service for a single panel. */
 const codeApi: PanelCodeApi = {
-  current: () => useStore.getState().activeCode,
-  readClips: (code) => codeRegion.readClips(code),
+  // Reads
+  list: (code) => codeRegion.list(code),
   readExpr: (source) => codeRegion.readExpr(source),
   locateOutput: (code) => codeRegion.locateOutput(code),
-  validateGraph: (clips) => codeRegion.validateGraph(clips),
+  dollarExprs: (code) => codeRegion.dollarExprs(code),
+  callArgs: (code, name) => codeRegion.callArgs(code, name),
+  validateGraph: (decls) => codeRegion.validateGraph(decls),
+  // Transforms
+  insertDecl: (code, declText) => codeRegion.insertDecl(code, declText),
+  removeDecl: (code, name) => codeRegion.removeDecl(code, name),
+  setInit: (code, name, source) => codeRegion.setInit(code, name, source),
+  setOutput: (code, text) => codeRegion.setOutput(code, text),
+  removeOutput: (code) => codeRegion.removeOutput(code),
+  // Raw
   spliceSpan: (code, start, end, replacement) =>
     codeRegion.spliceSpan(code, start, end, replacement),
-  // A ui_action notify already updates the store, mirrors the editor and
-  // re-evaluates audio (SyncControllerImpl._evaluateImmediate).
+  // Commit — a ui_action notify already updates the store, mirrors the editor
+  // and re-evaluates audio (SyncControllerImpl._evaluateImmediate).
   write: (code) => syncController.notify('ui_action', code),
 };
 

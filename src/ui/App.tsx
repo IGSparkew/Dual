@@ -10,7 +10,7 @@ import { Notifications } from './shared/Notifications';
 import '@modules/transport/index';
 import '@modules/editor/index';
 import '@modules/session/index';
-import '@modules/piano-roll/index';
+import '@modules/visualizer/index';
 import '@modules/mixer/index';
 import '@modules/effects/index';
 

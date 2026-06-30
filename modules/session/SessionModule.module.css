@@ -1,0 +1,440 @@
+/* ── Layout ─────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 36px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.toolbarBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.toolbarBtn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.toolbarBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbarBtn[data-active='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Scroll area ─────────────────────────────────────────────── */
+
+.scrollArea {
+  flex: 1;
+  overflow: auto;
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.scrollArea::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollArea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollArea::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* ── Row (one track) ─────────────────────────────────────────── */
+
+.row {
+  display: flex;
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+/* ── Track header (sticky left) ──────────────────────────────── */
+
+.trackHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 140px;
+  min-width: 140px;
+  padding: 0 10px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.trackColor {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: var(--track-color, var(--accent));
+}
+
+.trackName {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  cursor: default;
+}
+
+.trackName:focus {
+  cursor: text;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--accent);
+}
+
+.trackActions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s;
+}
+
+.iconBtn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.iconBtn[data-active='true'] {
+  color: var(--accent);
+}
+
+/* ── Clips row ───────────────────────────────────────────────── */
+
+.clips {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  padding: 10px;
+}
+
+/* ── Clip cell ───────────────────────────────────────────────── */
+
+.cell {
+  width: 84px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Empty cell */
+.cellEmpty {
+  border: 1px dashed var(--border);
+  background: transparent;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.cellEmpty:hover {
+  border-color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+/* Filled clip */
+.cellClip {
+  position: relative;
+  width: 130px;
+  min-height: 52px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--clip-color, var(--accent)) 18%, var(--bg-panel));
+  border: 1px solid color-mix(in srgb, var(--clip-color, var(--accent)) 45%, transparent);
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.cellClip[data-focused='true'] {
+  border-color: var(--clip-color, var(--accent));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--clip-color, var(--accent)) 55%, transparent);
+}
+
+.cellClip[data-playing='true'] {
+  background: color-mix(in srgb, var(--clip-color, var(--accent)) 32%, var(--bg-panel));
+}
+
+.cellClip:hover {
+  border-color: var(--clip-color, var(--accent));
+}
+
+.cellClip[data-selected='true'] {
+  border-color: var(--clip-color, var(--accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--clip-color, var(--accent)) 60%, transparent);
+}
+
+.cellClip[data-muted='true'] {
+  opacity: 0.4;
+}
+
+/* ── Clip inner content ──────────────────────────────────────── */
+
+.clipInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 5px 8px;
+  gap: 3px;
+}
+
+.clipName {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+.clipNameInput {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  outline: none;
+  width: 100%;
+  padding: 0 2px;
+  font-family: inherit;
+  line-height: 1.2;
+}
+
+.clipCode {
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+/* ── Playing indicator ───────────────────────────────────────── */
+
+.playIndicator {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.playBar {
+  width: 2px;
+  background: var(--clip-color, var(--accent));
+  border-radius: 1px;
+  animation: vu 0.8s ease-in-out infinite alternate;
+}
+
+.playBar:nth-child(1) { height: 5px; animation-delay: 0s; }
+.playBar:nth-child(2) { height: 8px; animation-delay: 0.15s; }
+.playBar:nth-child(3) { height: 5px; animation-delay: 0.3s; }
+
+@keyframes vu {
+  from { transform: scaleY(0.3); opacity: 0.6; }
+  to   { transform: scaleY(1);   opacity: 1; }
+}
+
+/* ── Add-clip ghost (last cell of each row) ──────────────────── */
+
+.cellAdd {
+  border: 1px dashed transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: border-color 0.1s, color 0.1s;
+  border-radius: 5px;
+}
+
+.cellAdd:hover {
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+/* ── Empty state (no tracks) ─────────────────────────────────── */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.emptyIcon {
+  opacity: 0.3;
+}
+
+.emptyLabel {
+  opacity: 0.6;
+}
+
+/* ── Clip header (badge + name) ──────────────────────────────── */
+
+.clipHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.clipBadge {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.clipReadOnly {
+  font-size: 8px;
+  font-style: italic;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* ── Launch / stop button ────────────────────────────────────── */
+
+.launchBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.launchBtn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.launchBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Error / info banners ────────────────────────────────────── */
+
+.errorBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--error, #e5484d) 14%, var(--bg-secondary));
+  border-bottom: 1px solid var(--error, #e5484d);
+  flex-shrink: 0;
+}
+
+.errorTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--error, #e5484d);
+}
+
+.errorLine {
+  font-size: 10px;
+  color: var(--text-primary);
+  opacity: 0.85;
+}
+
+.infoBanner {
+  padding: 6px 12px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.infoBanner code {
+  font-family: var(--font-mono, monospace);
+  color: var(--accent);
+}

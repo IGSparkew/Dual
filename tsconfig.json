@@ -16,12 +16,11 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "allowJs": true,
-    "baseUrl": ".",
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@layout/*": ["src/layout/*"],
-      "@ui/*": ["src/ui/*"],
-      "@modules/*": ["modules/*"]
+      "@core/*": ["./src/core/*"],
+      "@layout/*": ["./src/layout/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@modules/*": ["./modules/*"]
     }
   },
   "include": ["src", "src/strudel.d.ts", "modules"],

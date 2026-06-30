@@ -2,8 +2,10 @@ import type { Hap } from '@core/types/hap';
 import type { AppState, Notification } from '@core/state/store';
 import type { EventMap, EventType } from '@core/events/event-types';
 import type {
-  ClipDef,
-  CodeQuery,
+  CallArg,
+  Decl,
+  DollarExpr,
+  ExprQuery,
   GraphError,
   OutputRegion,
 } from '@core/interpreter/CodeRegion';
@@ -15,20 +17,47 @@ export type NotificationType = Notification['type'];
  * Region-scoped access to the document. Built-in panels may import the
  * `codeRegion` service directly; the module contract goes through this façade
  * only. It is the future permission boundary (`code:read` / `code:write`).
+ *
+ * The API reports structure (declarations, calls, output), the module decides
+ * meaning. It never names a consumer concept ("clip", "gate", "group").
  */
 export interface PanelCodeApi {
-  /** Current document text. */
-  current(): string;
-  /** All `const` definitions in source order. null on parse error. */
-  readClips(code: string): ClipDef[] | null;
-  /** Parse a standalone expression into a query. */
-  readExpr(source: string): CodeQuery | null;
-  /** Locate the current output region (`$:` block or `arrange(...)`). */
+  // ── Reads (pure) — code:read ───────────────────────────────────────────────
+
+  /** All top-level declarations in source order, tagged by `declKind`/
+   *  `initKind`. null on parse error. */
+  list(code: string): Decl[] | null;
+  /** Classify an arbitrary expression source. */
+  readExpr(source: string): ExprQuery | null;
+  /** Locate the live output region (`$:` block or terminal expression). */
   locateOutput(code: string): OutputRegion;
+  /** Expressions projected by the `$:` block, each tagged `isIdentifier`. */
+  dollarExprs(code: string): DollarExpr[];
+  /** Arguments of the call that initializes `name` (null if not a call). */
+  callArgs(code: string, name: string): CallArg[] | null;
   /** Validate the dependency graph (`[]` = OK). */
-  validateGraph(clips: ClipDef[]): GraphError[];
+  validateGraph(decls: Decl[]): GraphError[];
+
+  // ── Transforms (pure, code → code) — code:write ────────────────────────────
+
+  /** Insert a declaration statement just before the output, on its own line. */
+  insertDecl(code: string, declText: string): string;
+  /** Remove a declaration by name, with its trailing newlines. */
+  removeDecl(code: string, name: string): string;
+  /** Replace a declaration's initializer in place (splices `initStart..initEnd`). */
+  setInit(code: string, name: string, source: string): string;
+  /** Replace the output region (or add one if absent). */
+  setOutput(code: string, text: string): string;
+  /** Remove the output region. */
+  removeOutput(code: string): string;
+
+  // ── Raw escape hatch — code:write:raw, built-in only ───────────────────────
+
   /** Pure string splice — does not apply; returns the new text. */
   spliceSpan(code: string, start: number, end: number, replacement: string): string;
+
+  // ── Commit — the single write engine ───────────────────────────────────────
+
   /** Apply new document text and re-evaluate audio (ui_action). */
   write(code: string): void;
 }

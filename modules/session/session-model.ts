@@ -5,11 +5,12 @@
  * two facets of a clip: its *gate* (`NAME_ON`, the live mute) and its *usage*
  * (the `$:` projection). It never owns the clip's content or the document.
  *
- * All reads slice exact source via the façade; all writes are string splices
- * with offsets re-resolved from the current text on every operation.
+ * All reads slice exact source via the façade; all writes go through the
+ * façade's structure-preserving transforms (offsets re-resolved from the
+ * current text on every operation).
  */
 import type { PanelCodeApi } from '@layout/api/PanelApi';
-import type { ClipDef } from '@core/interpreter/CodeRegion';
+import type { Decl } from '@core/interpreter/CodeRegion';
 
 /** A clip as the grid sees it, derived from the document. */
 export interface RawClip {
@@ -68,11 +69,13 @@ export function uniqueName(taken: string[], base = 'clip'): string {
 
 // ─── Derivation (code → model) ───────────────────────────────────────────────
 
-export function deriveClips(api: PanelCodeApi, defs: ClipDef[]): RawClip[] {
+export function deriveClips(api: PanelCodeApi, defs: Decl[]): RawClip[] {
   const byName = new Map(defs.map((d) => [d.name, d]));
   const clips: RawClip[] = [];
 
   for (const def of defs) {
+    // A clip is a `const` whose initializer is a call; config consts are not.
+    if (def.declKind !== 'const' || def.initKind !== 'pattern') continue;
     if (!isClipInit(api, def.source)) continue;
     const gate = byName.get(gateName(def.name));
     clips.push({
@@ -91,20 +94,14 @@ export function deriveClips(api: PanelCodeApi, defs: ClipDef[]): RawClip[] {
 
 /** Read the identifiers projected by the `$:` block. */
 export function dollarRefs(api: PanelCodeApi, code: string): DollarRefs {
-  const output = api.locateOutput(code);
-  if (output.kind !== 'dollar') return { names: [], complex: false };
-
-  const region = code.slice(output.start, output.end);
   const names: string[] = [];
   let complex = false;
 
-  for (const line of region.split('\n').map((l) => l.trim()).filter(Boolean)) {
-    const m = line.match(/^\$:\s*(.+?);?$/);
-    if (!m) continue;
-    const expr = m[1].trim();
+  for (const expr of api.dollarExprs(code)) {
+    const source = expr.source.trim();
     // The silence sentinel (`"~"` or `silence`) means "nothing launched".
-    if (expr === SILENCE_TOKEN || expr === "'~'" || expr === 'silence') continue;
-    if (/^[A-Za-z_$][\w$]*$/.test(expr)) names.push(expr);
+    if (source === SILENCE_TOKEN || source === "'~'" || source === 'silence') continue;
+    if (expr.isIdentifier) names.push(source);
     else complex = true;
   }
   return { names, complex };
@@ -143,68 +140,29 @@ export function projectDollar(names: string[]): string {
 
 // ─── Splices (all re-resolve offsets from the passed `code`) ─────────────────
 
-/** Insert a const block just before the output region (after all other consts,
- *  preserving topological order since members are declared above). */
-export function insertConst(api: PanelCodeApi, code: string, block: string): string {
-  const output = api.locateOutput(code);
-  const at = output.kind !== 'none' ? output.start : code.length;
-  const head = code.slice(0, at);
-  const tail = code.slice(at);
-  const pre = head === '' || head.endsWith('\n') ? head : `${head}\n`;
-  return `${pre}${block.trim()}\n${tail}`;
-}
-
-/** Remove a const declaration and its trailing newlines. */
-export function removeConst(code: string, def: ClipDef): string {
-  let end = def.end;
-  while (code[end] === '\n') end++;
-  return code.slice(0, def.start) + code.slice(end);
-}
-
 /**
  * Provision the gate machinery for a hand-written clip that lacks it: append
  * `.gain(NAME_ON ? NAME_GAIN : 0)` to its initializer and insert the gate/gain
  * consts just above it. Created muted (`NAME_ON = 0`) since the user just asked
  * to mute. The clip's content stays intact; subsequent mutes are 1-char flips.
  */
-export function provisionGate(api: PanelCodeApi, code: string, def: ClipDef): string {
+export function provisionGate(api: PanelCodeApi, code: string, def: Decl): string {
   const on = gateName(def.name);
   const gain = gainName(def.name);
 
-  // 1) Append the gate chain at the end of the initializer.
-  const declText = code.slice(def.start, def.end);
-  const initEnd = def.start + declText.lastIndexOf(def.source) + def.source.length;
-  let next = api.spliceSpan(code, initEnd, initEnd, `.gain(${on} ? ${gain} : 0)`);
+  // 1) Append the gate chain at the end of the initializer (offset from Decl).
+  let next = api.spliceSpan(code, def.initEnd, def.initEnd, `.gain(${on} ? ${gain} : 0)`);
 
   // 2) Insert the config consts right before the clip (re-resolved offsets).
-  const def2 = (api.readClips(next) ?? []).find((d) => d.name === def.name);
+  const def2 = (api.list(next) ?? []).find((d) => d.name === def.name);
   if (!def2) return next;
   return api.spliceSpan(next, def2.start, def2.start, `const ${gain} = 1;\nconst ${on} = 0;\n`);
 }
 
-/** Flip a gate const's value, splicing only the literal so the rest of the line
- *  (comments, spacing) stays byte-identical. */
-export function flipGate(code: string, gateDef: ClipDef, value: 0 | 1): string {
-  const declText = code.slice(gateDef.start, gateDef.end);
-  const rel = declText.lastIndexOf(gateDef.source);
-  const absStart = gateDef.start + rel;
-  const absEnd = absStart + gateDef.source.length;
-  return code.slice(0, absStart) + String(value) + code.slice(absEnd);
-}
-
-/** Append an output region (`$:` block or `arrange(...)`) at the end. */
-function appendOutput(code: string, text: string): string {
-  const pre = code === '' || code.endsWith('\n') ? code : `${code}\n`;
-  return `${pre}${text}\n`;
-}
-
 /** Rewrite the `$:` block from the active clip names (session mode). Empty →
- *  `$: silence` so the output region is always present and evaluable. */
+ *  `$: "~"` so the output region is always present and evaluable. */
 export function reprojectDollar(api: PanelCodeApi, code: string, names: string[]): string {
-  const output = api.locateOutput(code);
-  const dollar = projectDollar(names);
-  if (output.kind === 'dollar') return api.spliceSpan(code, output.start, output.end, dollar);
-  return appendOutput(code, dollar);
+  return api.setOutput(code, projectDollar(names));
 }
 
 /**
@@ -221,8 +179,7 @@ export function removeClip(
 ): string {
   let next = reprojectDollar(api, code, playing.filter((n) => n !== name));
   for (const target of [name, gateName(name), gainName(name)]) {
-    const def = (api.readClips(next) ?? []).find((d) => d.name === target);
-    if (def) next = removeConst(next, def);
+    next = api.removeDecl(next, target);
   }
   return next;
 }
@@ -233,6 +190,52 @@ export function clipsReferencing(clips: RawClip[], name: string): string[] {
   return clips.filter((c) => c.name !== name && c.refs.includes(name)).map((c) => c.name);
 }
 
+/** The referenceable members of a group `const name = stack(a, b)…`: the
+ *  identifier arguments of its root call. Inline (anonymous) args are dropped —
+ *  they have no name to promote. */
+export function groupMembers(api: PanelCodeApi, code: string, name: string): string[] {
+  const args = api.callArgs(code, name);
+  if (!args) return [];
+  return args.filter((a) => a.isIdentifier).map((a) => a.source.trim());
+}
+
+/**
+ * Ungroup by *expanding*: remove the group const (and its gate/gain) but, if it
+ * was playing, project its members individually so the music keeps going. The
+ * members already exist as their own consts, so they remain launchable.
+ *
+ * The caller must first ensure no other clip references the group (dead-ref
+ * guard) — use `clipsReferencing`.
+ */
+export function expandGroup(
+  api: PanelCodeApi,
+  code: string,
+  name: string,
+  playing: string[],
+): string {
+  const members = groupMembers(api, code, name);
+  const wasPlaying = playing.includes(name);
+  const nextPlaying = wasPlaying
+    ? [...playing.filter((n) => n !== name), ...members.filter((m) => !playing.includes(m))]
+    : playing.filter((n) => n !== name);
+
+  // Re-project first (members still exist), then delete the group + its consts.
+  let next = reprojectDollar(api, code, nextPlaying);
+  for (const target of [name, gateName(name), gainName(name)]) {
+    next = api.removeDecl(next, target);
+  }
+  return next;
+}
+
+/** True when the live output is a hand-driven `arrange(...)` expression. */
+function isArrangeOutput(api: PanelCodeApi, code: string): boolean {
+  const output = api.locateOutput(code);
+  return (
+    output.kind === 'expression' &&
+    code.slice(output.start, output.end).trimStart().startsWith('arrange')
+  );
+}
+
 /** Replace the output with an `arrange(...)` call (session → arrangement). */
 export function toArrangement(
   api: PanelCodeApi,
@@ -240,14 +243,12 @@ export function toArrangement(
   playing: string[],
   storedArrange: string,
 ): string {
-  const output = api.locateOutput(code);
   const arrange =
     storedArrange.trim() ||
     (playing.length
       ? `arrange([4, stack(${playing.join(', ')})])`
       : `arrange([4, silence])`);
-  if (output.kind === 'none') return appendOutput(code, arrange);
-  return api.spliceSpan(code, output.start, output.end, arrange);
+  return api.setOutput(code, arrange);
 }
 
 /** Replace the output with the `$:` block (arrangement → session); returns the
@@ -258,11 +259,9 @@ export function toSession(
   playing: string[],
 ): { code: string; captured: string } {
   const output = api.locateOutput(code);
-  const captured = output.kind === 'arrange' ? code.slice(output.start, output.end) : '';
-  const dollar = projectDollar(playing);
-  const next =
-    output.kind === 'none'
-      ? appendOutput(code, dollar)
-      : api.spliceSpan(code, output.start, output.end, dollar);
-  return { code: next, captured };
+  const captured =
+    isArrangeOutput(api, code) && output.kind === 'expression'
+      ? code.slice(output.start, output.end)
+      : '';
+  return { code: api.setOutput(code, projectDollar(playing)), captured };
 }

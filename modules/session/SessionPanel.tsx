@@ -1,7 +1,7 @@
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '@core/state/store';
-import type { GraphError } from '@core/interpreter/CodeRegion';
+import type { Decl, GraphError } from '@core/interpreter/CodeRegion';
 import { SessionToolbar } from './components/SessionToolBar';
 import { SessionGrid } from './components/SessionGrid';
 import {
@@ -10,9 +10,8 @@ import {
   clipsReferencing,
   deriveClips,
   dollarRefs,
-  flipGate,
+  expandGroup,
   gateName,
-  insertConst,
   provisionGate,
   removeClip,
   reprojectDollar,
@@ -57,8 +56,8 @@ export function SessionPanel({ api }: PanelProps) {
 
   /** Re-derive the whole model from the current document. */
   const refresh = useCallback(() => {
-    const code = api.code.current();
-    const defs = api.code.readClips(code);
+    const code = api.getCode();
+    const defs = api.code.list(code);
     if (defs === null) return; // parse error — keep the current view
 
     const raw = deriveClips(api.code, defs);
@@ -74,9 +73,7 @@ export function SessionPanel({ api }: PanelProps) {
         if (!clipNames.has(ref)) {
           errs.push({
             kind: 'dead-ref',
-            name: '$:',
-            ref,
-            message: `La sortie référence « ${ref} », qui n'existe pas.`,
+            detail: `La sortie référence « ${ref} », qui n'existe pas.`,
           });
         }
       }
@@ -127,7 +124,7 @@ export function SessionPanel({ api }: PanelProps) {
     const set = new Set(playingRef.current);
     set.has(clip.name) ? set.delete(clip.name) : set.add(clip.name);
     const names = clips.map((c) => c.name).filter((n) => set.has(n));
-    apply(reprojectDollar(api.code, api.code.current(), names));
+    apply(reprojectDollar(api.code, api.getCode(), names));
   };
 
   // ─── Mute (gate flip on the focused clip) ───────────────────────────────────
@@ -136,8 +133,8 @@ export function SessionPanel({ api }: PanelProps) {
     if (frozen || !focused) return;
     const clip = clips.find((c) => c.name === focused);
     if (!clip) return;
-    const code = api.code.current();
-    const def = api.code.readClips(code)?.find((d) => d.name === focused);
+    const code = api.getCode();
+    const def = api.code.list(code)?.find((d) => d.name === focused);
     if (!def) return;
 
     if (!clip.hasGate) {
@@ -145,18 +142,17 @@ export function SessionPanel({ api }: PanelProps) {
       apply(provisionGate(api.code, code, def));
       return;
     }
-    const gateDef = (api.code.readClips(code) ?? []).find((d) => d.name === gateName(focused));
-    if (!gateDef) return;
-    apply(flipGate(code, gateDef, clip.isMuted ? 1 : 0));
+    // Flip the gate const's value in place (1-char splice via setInit).
+    apply(api.code.setInit(code, gateName(focused), clip.isMuted ? '1' : '0'));
   };
 
   // ─── Create clip ────────────────────────────────────────────────────────────
 
   const handleAddClip = () => {
     if (frozen) return;
-    const code = api.code.current();
+    const code = api.getCode();
     const name = uniqueName(clips.map((c) => c.name));
-    apply(insertConst(api.code, code, buildLeaf(name, 's("bd")')));
+    apply(api.code.insertDecl(code, buildLeaf(name, 's("bd")')));
   };
 
   // ─── Group / ungroup ────────────────────────────────────────────────────────
@@ -168,21 +164,32 @@ export function SessionPanel({ api }: PanelProps) {
       api.showNotification('Sélectionne au moins 2 clips à grouper', 'warning');
       return;
     }
-    const code = api.code.current();
-    const defs = api.code.readClips(code) ?? [];
+    const code = api.getCode();
+    const defs = api.code.list(code) ?? [];
     const name = uniqueName(defs.map((d) => d.name), 'group');
     // Validate the prospective graph (group declared last, after its members).
-    const prospective = [
+    const prospective: Decl[] = [
       ...defs,
-      { name, source: `stack(${members.join(', ')})`, refs: members, start: code.length, end: code.length },
+      {
+        name,
+        declKind: 'const',
+        initKind: 'pattern',
+        callee: 'stack',
+        source: `stack(${members.join(', ')})`,
+        refs: members,
+        start: code.length,
+        end: code.length,
+        initStart: code.length,
+        initEnd: code.length,
+      },
     ];
     const errs = api.code.validateGraph(prospective);
     if (errs.length) {
-      api.showNotification(errs[0].message, 'error');
+      api.showNotification(errs[0].detail, 'error');
       return;
     }
     setSelection([]);
-    apply(insertConst(api.code, code, buildGroup(name, members)));
+    apply(api.code.insertDecl(code, buildGroup(name, members)));
   };
 
   // Shared removal: refuse if another clip references it (would leave a dead
@@ -196,7 +203,7 @@ export function SessionPanel({ api }: PanelProps) {
       );
       return;
     }
-    const next = removeClip(api.code, api.code.current(), name, playingRef.current);
+    const next = removeClip(api.code, api.getCode(), name, playingRef.current);
     setSelection((s) => s.filter((n) => n !== name));
     if (focused === name) setFocused(null);
     apply(next);
@@ -214,7 +221,20 @@ export function SessionPanel({ api }: PanelProps) {
       api.showNotification('Sélectionne un groupe à dégrouper', 'warning');
       return;
     }
-    removeClipByName(focused);
+    // Refuse if another clip references the group (would leave a dead ref).
+    const referencers = clipsReferencing(clips, focused);
+    if (referencers.length) {
+      api.showNotification(
+        `Impossible : « ${focused} » est utilisé par ${referencers.join(', ')}`,
+        'error',
+      );
+      return;
+    }
+    // Expand: promote the group's members so the music keeps playing.
+    const next = expandGroup(api.code, api.getCode(), focused, playingRef.current);
+    setSelection((s) => s.filter((n) => n !== focused));
+    setFocused(null);
+    apply(next);
   };
 
   // ─── Rename (label only — never touches code) ───────────────────────────────
@@ -227,7 +247,7 @@ export function SessionPanel({ api }: PanelProps) {
 
   const handleToggleMode = () => {
     if (frozen) return;
-    const code = api.code.current();
+    const code = api.getCode();
     const store = useStore.getState();
     if (outputMode === 'session') {
       const next = toArrangement(api.code, code, playingRef.current, store.arrangementCode);
@@ -267,7 +287,7 @@ export function SessionPanel({ api }: PanelProps) {
         <div className={styles.errorBanner} role="alert">
           <span className={styles.errorTitle}>Graphe invalide — panneau gelé</span>
           {errors.slice(0, 4).map((e, i) => (
-            <span key={i} className={styles.errorLine}>{e.message}</span>
+            <span key={i} className={styles.errorLine}>{e.detail}</span>
           ))}
         </div>
       )}

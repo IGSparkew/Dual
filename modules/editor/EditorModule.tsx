@@ -8,9 +8,9 @@ import { eventBus } from '@core/events/EventBusImpl';
 import { syncController } from '@core/interpreter/impl/SyncControllerImpl';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 import { strudelCompletions } from './strudel-completions';
-import styles from './EditorPanel.module.css';
+import styles from './EditorModule.module.css';
 
-export function EditorPanel(_: PanelProps) {
+export function EditorModule(_: PanelProps) {
   // Local state — NOT bound directly to the store to avoid re-render loops.
   // The store is only used to initialize and to receive external (ui_action) changes.
   const [localCode, setLocalCode] = useState(() => useStore.getState().activeCode);

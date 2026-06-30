@@ -70,8 +70,8 @@ const Pascal = id
   .split(/[-_]/)
   .map((s) => s[0].toUpperCase() + s.slice(1))
   .join('');
-const Panel = `${Pascal}Panel`; // component + file base, e.g. PianoRollPanel
-const model = `${id}-model`; // pure logic module, e.g. piano-roll-model
+const Module = `${Pascal}Module`; // component + file base, e.g. PianoRollModule
+const logic = id; // pure logic module = the module id, e.g. piano-roll.ts
 
 const dir = path.resolve('modules', id);
 if (existsSync(dir)) {
@@ -93,17 +93,17 @@ const manifest = {
 const indexTs = `import { panelRegistry } from '@layout/registry/PanelRegistryImpl';
 import type { SlotId, PanelCapability } from '@core/types/panel';
 import manifest from './manifest.json';
-import { ${Panel} } from './${Panel}';
+import { ${Module} } from './${Module}';
 
 panelRegistry.register({
   ...manifest,
   defaultSlot: manifest.defaultSlot as SlotId,
   capabilities: manifest.capabilities as PanelCapability[],
-  component: ${Panel},
+  component: ${Module},
 });
 `;
 
-const modelTs = `import type { Hap } from '@core/types/hap';
+const logicTs = `import type { Hap } from '@core/types/hap';
 
 /** Derived view — colocated with the function that produces it. */
 export interface ${Pascal}View {
@@ -121,13 +121,13 @@ export function mutate(code: string /*, action */): string {
 }
 `;
 
-const panelTsx = `import type { PanelProps } from '@layout/registry/PanelRegistry';
+const moduleTsx = `import type { PanelProps } from '@layout/registry/PanelRegistry';
 import { useEffect, useState } from 'react';
 import type { Hap } from '@core/types/hap';
-import { derive, mutate } from './${model}';
-import styles from './${Panel}.module.css';
+import { derive, mutate } from './${logic}';
+import styles from './${Module}.module.css';
 
-export function ${Panel}({ api }: PanelProps) {
+export function ${Module}({ api }: PanelProps) {
   const [haps, setHaps] = useState<Hap[]>([]);
 
   // Receive haps on each evaluation.
@@ -148,7 +148,7 @@ export function ${Panel}({ api }: PanelProps) {
 }
 `;
 
-const panelCss = `.root {
+const moduleCss = `.root {
   width: 100%;
   height: 100%;
 }
@@ -157,9 +157,9 @@ const panelCss = `.root {
 await mkdir(dir, { recursive: true });
 await writeFile(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 await writeFile(path.join(dir, 'index.ts'), indexTs);
-await writeFile(path.join(dir, `${model}.ts`), modelTs);
-await writeFile(path.join(dir, `${Panel}.tsx`), panelTsx);
-await writeFile(path.join(dir, `${Panel}.module.css`), panelCss);
+await writeFile(path.join(dir, `${logic}.ts`), logicTs);
+await writeFile(path.join(dir, `${Module}.tsx`), moduleTsx);
+await writeFile(path.join(dir, `${Module}.module.css`), moduleCss);
 
 // Auto-register the module by inserting its import into the App shell.
 const importLine = `import '@modules/${id}/index';`;

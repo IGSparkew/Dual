@@ -1,6 +1,6 @@
 import { VolumeXIcon, Group, Ungroup, Plus, ListMusic, Grid3x3, Trash2 } from 'lucide-react';
 import type { OutputMode } from '@core/state/store';
-import styles from '../SessionPanel.module.css';
+import styles from '../SessionModule.module.css';
 
 interface SessionToolbarProps {
   outputMode: OutputMode;

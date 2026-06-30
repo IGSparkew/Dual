@@ -9,7 +9,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "make:module": "node scripts/scaffold-module.js",
-    "vendor:samples": "node scripts/vendor-samples.mjs"
+    "vendor:samples": "node scripts/vendor-samples.mjs",
+    "samples:pack": "node scripts/pack-samples.mjs",
+    "samples:unpack": "node scripts/unpack-samples.mjs"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",

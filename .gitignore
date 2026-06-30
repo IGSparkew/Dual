@@ -3,3 +3,6 @@ dist/
 .env
 .env.local
 *.local
+
+# sample archives produced by `npm run samples:pack` / consumed by `samples:unpack`
+/samples-*.tgz

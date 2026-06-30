@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import styles from './App.module.css';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
+import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
 import { useStore } from '@core/state/store';
 import { LayoutManager } from '@layout/components/LayoutManager';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
@@ -23,7 +24,8 @@ export function App() {
   const [activeLayoutId, setActiveLayoutId] = useState('production');
 
   useEffect(() => {
-    strudelBridge.init();
+    strudelBridge.init(); // audio on first gesture
+    void sampleLoader.loadDefaults(); // register the maps right away (no audio context needed)
   }, []);
 
   if (engineStatus !== 'ready') {

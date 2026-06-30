@@ -8,12 +8,14 @@
     "dev": "vite --port 3000",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "make:module": "node scripts/scaffold-module.js"
+    "make:module": "node scripts/scaffold-module.js",
+    "vendor:samples": "node scripts/vendor-samples.mjs"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",
     "@strudel/core": "^1.0.0",
     "@strudel/mini": "^1.0.0",
+    "@strudel/tonal": "^1.2.6",
     "@strudel/transpiler": "^1.0.0",
     "@strudel/webaudio": "^1.0.0",
     "@uiw/react-codemirror": "^4.23.0",

@@ -3,8 +3,35 @@ import type { SampleLoader } from '../SampleLoader';
 // Tracks blob URLs created for registered files so they can be revoked on demand
 const blobUrls = new Map<string, string>();
 
+// dough-samples packs vendored under public/samples/ (run scripts/vendor-samples.mjs).
+// Each entry: the strudel.json map + the folder its relative paths resolve against.
+// NB: tidal-drum-machines and EmuSP12 share the same base folder — both maps merge there.
+const PACKS: ReadonlyArray<{ map: string; base: string }> = [
+  { map: 'Dirt-Samples.json', base: 'Dirt-Samples/' }, // bd sd hh cp…
+  { map: 'piano.json', base: 'piano/' }, // note(...).s("piano")
+  { map: 'vcsl.json', base: 'VCSL/' }, // assorted instruments
+  { map: 'tidal-drum-machines.json', base: 'tidal-drum-machines/machines/' }, // .bank("RolandTR909")
+  { map: 'EmuSP12.json', base: 'tidal-drum-machines/machines/' }, // Emu SP-1200
+  { map: 'mridangam.json', base: 'mrid/' }, // indian percussion
+];
+
 export class SampleLoaderImpl implements SampleLoader {
   private cache = new Map<string, AudioBuffer>();
+  private defaultsLoaded = false;
+
+  async loadDefaults(): Promise<void> {
+    if (this.defaultsLoaded) return;
+    const { samples } = await import('@strudel/webaudio');
+
+    // BASE_URL = '/' in dev, './' in prod (matches an Electron `base: './'`).
+    const root = `${import.meta.env.BASE_URL}samples/`;
+
+    // The 2nd arg is the LOCAL base; it overrides any `_base` left in the json
+    // (the vendor script strips `_base` anyway — belt and suspenders). Maps
+    // register instantly; audio files stay lazy-loaded until first play.
+    await Promise.all(PACKS.map(({ map, base }) => samples(root + map, root + base)));
+    this.defaultsLoaded = true;
+  }
 
   async load(url: string): Promise<AudioBuffer> {
     const cached = this.cache.get(url);

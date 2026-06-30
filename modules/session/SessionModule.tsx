@@ -19,8 +19,8 @@ import {
   toSession,
   uniqueName,
   type RawClip,
-} from './session-model';
-import styles from './SessionPanel.module.css';
+} from './session';
+import styles from './SessionModule.module.css';
 
 /**
  * Session View — first consumer of the CodeRegion socle.
@@ -30,7 +30,7 @@ import styles from './SessionPanel.module.css';
  * document by splices that leave the preamble and clip content intact. The
  * editor always shows the whole project — selecting a clip never rewrites it.
  */
-export function SessionPanel({ api }: PanelProps) {
+export function SessionModule({ api }: PanelProps) {
   const [clips, setClips] = useState<RawClip[]>([]);
   const [errors, setErrors] = useState<GraphError[]>([]);
   const [complexDollar, setComplexDollar] = useState(false);

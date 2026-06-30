@@ -80,8 +80,7 @@ src/
 modules/      # Modules graphiques (built-in + utilisateurs) — chargés dynamiquement
 ├── session/                 # Session View — grille de clips
 ├── editor/                  # Code Editor — CodeMirror + coloration Strudel
-├── piano-roll/              # Piano Roll — Canvas 2D, édition de notes
-├── drum-grid/               # Drum Grid — Canvas 2D, grille rythmique
+├── visualizer/              # Visualizer — héberge les CanvasVisualizers (piano-roll, drum-grid)
 ├── mixer/                   # Mixer — faders, knobs, meters
 ├── mixer-track/             # Mixer Track — strip individuel par canal
 ├── effects/                 # FX Rack — chaîne d'effets visuelle
@@ -105,13 +104,20 @@ themes/       # Thèmes visuels (JSON)
 
 | Élément | Convention | Exemple |
 |---|---|---|
-| Composants React | `PascalCase.tsx` | `PianoRoll.tsx` |
+| Composants React | `PascalCase.tsx` | `SplitPane.tsx` |
+| Rendu principal d'un module | `<Pascal>Module.tsx` | `SessionModule.tsx`, `PianoRollModule.tsx` |
+| Logique d'un module (pure) | `<id>.ts` (kebab) | `session.ts`, `piano-roll.ts` |
 | Interfaces | `PascalCase.ts` | `Scheduler.ts` |
 | Implémentations | `PascalCaseImpl.ts` | `SchedulerImpl.ts` |
 | Modules TS purs | `kebab-case.ts` | `event-types.ts`, `piano-roll-renderer.ts` |
-| Types | Fichiers dédiés dans `src/core/types/` | `hap.ts`, `clip.ts` |
+| Types **partagés** | Fichiers dédiés dans `src/core/types/` | `hap.ts`, `clip.ts` |
 | Styles | CSS Modules | `Component.module.css` |
 | Canvas | Rendu dans `*-renderer.ts`, interactions dans `*-interaction.ts` | `piano-roll-renderer.ts`, `note-interaction.ts` |
+
+> ⚠️ Le fichier de rendu d'un module se suffixe `Module` (jamais `Panel`), et son
+> fichier de logique porte simplement l'id du module (`session.ts`, pas
+> `session-model.ts` ni `SessionModuleApi.ts`). Voir **Module System →
+> Organisation d'un module**.
 
 ### Imports
 
@@ -121,7 +127,7 @@ Toujours utiliser les alias Vite :
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
 import type { PanelApi } from '@layout/PanelApi';
-import { PianoRoll } from '@modules/piano-roll/PianoRoll';
+import { VisualizerModule } from '@modules/visualizer/VisualizerModule';
 import { Button } from '@ui/Button';
 ```
 
@@ -187,10 +193,50 @@ Les composants React (panneaux, UI partagée) n'utilisent **pas** ce pattern —
 // modules/piano-roll/index.ts
 import { panelRegistry } from '@layout/PanelRegistryImpl';
 import manifest from './manifest.json';
-import { PianoRoll } from './PianoRoll';
+import { PianoRollModule } from './PianoRollModule';
 
-panelRegistry.register({ ...manifest, component: PianoRoll });
+panelRegistry.register({ ...manifest, component: PianoRollModule });
 ```
+
+### Organisation d'un module
+
+> Principe : **la logique est pure et sans état ; React et le store sont les
+> seuls points de contact avec le monde extérieur.** Zustand tient l'état, le
+> module est sans état (un sac de fonctions pures `(api, code) → résultat`).
+
+```
+modules/session/
+├── manifest.json            # { id, name, defaultSlot, capabilities }
+├── index.ts                 # enregistrement uniquement (colle minuscule)
+├── SessionModule.tsx        # rendu principal — seul point de contact store/React
+├── SessionModule.module.css
+├── session.ts               # ★ logique pure + types dérivés colocalisés
+├── models/                  # modèles PERSISTANTS du module (sidecar .json) — si besoin
+└── components/              # sous-composants du rendu (+ leurs props colocalisées)
+```
+
+| Fichier | Responsabilité | Nature |
+|---|---|---|
+| `index.ts` | importer + `panelRegistry.register({...})` — rien d'autre | colle |
+| `<Module>.tsx` | rendu, orchestration, branchement au store | React |
+| `<id>.ts` | dérivation (code→modèle) + mutation (action→code) | **pur** |
+| `models/*.ts` | entités persistantes (survivent à un recalcul, vont au `.json`) | types |
+| `components/*.tsx` | sous-composants + leurs props | React |
+
+**Où va chaque type** (critères disjoints) :
+- **partagé** entre modules / avec le cœur → `src/core/types/`
+- **persistant** propre au module → `models/`
+- **vue dérivée** produite par une fonction → colocalisée dans `<id>.ts` (ou la
+  props colocalisée dans le `.tsx` qui la consomme)
+
+> ⚠️ **Jamais de dossier `types/` dans un module.** Une vue dérivée reste à côté
+> de sa fonction ; les props restent dans leur composant ; le persistant va dans
+> `models/`. Le code Strudel est la source de vérité : la plupart des « modèles »
+> sont en réalité une *dérivation du code*, pas un état persistant.
+
+> Écriture **toujours** via `api.code.write` / `modifyCode` (jamais de
+> `setActiveCode` à la main) ; aucun `slice`/`split`/`regex` sur le texte du
+> document dans la logique → passer par les verbes de `api.code.*`.
 
 ### Règle clé
 

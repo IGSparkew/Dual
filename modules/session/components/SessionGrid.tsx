@@ -1,6 +1,18 @@
-import type { SessionGridProps } from '../types/SessionGridProps';
-import styles from '../SessionPanel.module.css';
+import type { RawClip } from '../session';
+import styles from '../SessionModule.module.css';
 import { Clip } from './Clip';
+
+export interface SessionGridProps {
+  clips: RawClip[];
+  labels: Record<string, string>;
+  playing: string[];
+  selection: string[];
+  focused: string | null;
+  launchEnabled: boolean;
+  onSelect: (clip: RawClip, additive: boolean) => void;
+  onLaunch: (clip: RawClip) => void;
+  onRename: (clip: RawClip, label: string) => void;
+}
 
 export function SessionGrid(props: SessionGridProps) {
   const playing = new Set(props.playing);

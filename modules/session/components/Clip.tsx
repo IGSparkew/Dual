@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Square, Layers } from 'lucide-react';
-import styles from '../SessionPanel.module.css';
-import type { ClipCellProps } from '../types/ClipProps';
+import styles from '../SessionModule.module.css';
+import type { RawClip } from '../session';
 
-export function Clip(props: ClipCellProps) {
+export interface ClipProps {
+  clip: RawClip;
+  label: string;
+  isPlaying: boolean;
+  isSelected: boolean;
+  isFocused: boolean;
+  launchEnabled: boolean;
+  onSelect: (additive: boolean) => void;
+  onLaunch: () => void;
+  onRename: (label: string) => void;
+}
+
+export function Clip(props: ClipProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(props.label);
   const inputRef = useRef<HTMLInputElement>(null);

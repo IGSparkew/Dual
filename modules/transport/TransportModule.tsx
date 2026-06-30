@@ -5,9 +5,9 @@ import { scheduler } from '@core/engine/impl/SchedulerImpl';
 import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
 import { useStore } from '@core/state/store';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
-import styles from './TransportPanel.module.css';
+import styles from './TransportModule.module.css';
 
-export function TransportPanel({ api }: PanelProps) {
+export function TransportModule({ api }: PanelProps) {
   const transport = useStore((s) => s.transport);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

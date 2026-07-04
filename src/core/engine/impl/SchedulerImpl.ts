@@ -64,6 +64,15 @@ export class SchedulerImpl implements Scheduler {
 
   private computePosition(): number {
     if (this.status !== 'playing') return this.pausedAt;
+    // Prefer the Strudel scheduler's own cycle clock (`now()`, in cycles) —
+    // it is the clock the audio events are scheduled against, so consumers
+    // (VU meters, playheads) stay in phase with what is audible. 1 cycle =
+    // 4 beats (cps = bpm/60/4).
+    const strudel = strudelBridge.getScheduler();
+    const cycles = strudel?.now?.();
+    if (typeof cycles === 'number' && Number.isFinite(cycles) && cycles > 0) {
+      return cycles * 4;
+    }
     const elapsed = this.getAudioTime() - this.startTime;
     return elapsed * (this.bpm / 60);
   }

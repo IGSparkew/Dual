@@ -254,6 +254,12 @@ export function releaseSolo(
 /** Per-strip activity envelope over one cycle (values 0..n, usually 0..1). */
 export type Activity = Record<string, number[]>;
 
+/** Body level of a hap right after its onset bucket — the meter spikes on
+ *  note starts, drops to this fraction, then fades linearly to silence over
+ *  the hap's remaining duration (a lone full-cycle note must not pin the
+ *  meter at half height while nothing is audible anymore). */
+const SUSTAIN = 0.45;
+
 /**
  * Bucket the evaluated haps per strip over one cycle. A hap belongs to the
  * strip whose declaration span contains its first source location; a group
@@ -277,8 +283,11 @@ export function deriveActivity(
     const level = Number.isFinite(hap.gain) ? hap.gain : 1;
     const from = Math.max(0, Math.floor(hap.begin * buckets));
     const to = Math.min(buckets - 1, Math.ceil(hap.end * buckets) - 1);
+    const span = to - from + 1;
     for (let i = from; i <= to; i++) {
-      activity[strip.name][i] = Math.max(activity[strip.name][i], level);
+      const fade = 1 - (i - from) / span;
+      const v = i === from ? level : level * SUSTAIN * fade;
+      activity[strip.name][i] = Math.max(activity[strip.name][i], v);
     }
   }
 

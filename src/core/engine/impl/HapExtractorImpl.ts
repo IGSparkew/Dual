@@ -6,8 +6,9 @@ export class HapExtractorImpl implements HapExtractor {
         const rawHaps = pattern.queryArc(begin, end);
         
         return rawHaps.map((hap: any) => ({
-            begin: this.fractionToNumber(hap.whole.begin),
-            end: this.fractionToNumber(hap.whole.end),
+            // Continuous haps have no `whole`; fall back to the queried part.
+            begin: this.fractionToNumber((hap.whole ?? hap.part).begin),
+            end: this.fractionToNumber((hap.whole ?? hap.part).end),
             sample: hap.value?.s ?? null,
             note: hap.value?.note ?? null,
             gain: hap.value?.gain ?? 1,
@@ -18,7 +19,10 @@ export class HapExtractorImpl implements HapExtractor {
     }
 
     private fractionToNumber(fraction: any): number {
-        return fraction.s * fraction.n / fraction.d;
+        // Strudel fractions are BigInt-backed (fraction.js); convert each part
+        // before dividing so we get a float, not a truncated BigInt.
+        if (typeof fraction === 'number') return fraction;
+        return (Number(fraction.s) * Number(fraction.n)) / Number(fraction.d);
     }
     
 }

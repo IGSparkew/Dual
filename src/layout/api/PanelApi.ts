@@ -1,4 +1,5 @@
 import type { Hap } from '@core/types/hap';
+import type { TransportState } from '@core/types/transport';
 import type { AppState, Notification } from '@core/state/store';
 import type { EventMap, EventType } from '@core/events/event-types';
 import type {
@@ -71,6 +72,9 @@ export interface PanelApi {
   getCode(): string;
   modifyCode(transform: (code: string) => string): void;
   getState<T>(selector: (state: AppState) => T): T;
+  /** Live transport snapshot (audio-clock position) — unlike the store copy,
+   *  `position` advances while playing. Poll it from animation loops. */
+  getTransport(): TransportState;
   emit<K extends EventType>(eventType: K, payload: EventMap[K]): void;
   on<K extends EventType>(
     eventType: K,

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 import type { GraphError } from '@core/interpreter/CodeRegion';
 import type { NormalizedHap } from '@core/types/hap';
-import { useStore } from '@core/state/store';
 import {
   deriveActivity,
   deriveStrips,
@@ -16,7 +15,12 @@ import {
   type Strip,
 } from './mixer';
 import { ChannelStrip } from './components/ChannelStrip';
-import { drawVuMeter, stepEnvelope, type VuEnvelope } from './components/vu-meter-renderer';
+import {
+  createEnvelope,
+  drawVuMeter,
+  stepEnvelope,
+  type VuEnvelope,
+} from './components/vu-meter-renderer';
 import styles from './MixerModule.module.css';
 
 /**
@@ -64,8 +68,10 @@ export function MixerModule({ api }: PanelProps) {
   useEffect(() => {
     refresh();
     return api.on('code:changed', ({ origin }) => {
-      if (origin !== 'user_edit') return;
-      if (soloRef.current.size > 0) {
+      // Refresh on every document change: hand edits AND writes from other
+      // panels (session adding a clip, arrangement edits, ...). Refresh is a
+      // pure derivation, so reacting to our own writes is harmless.
+      if (origin === 'user_edit' && soloRef.current.size > 0) {
         // Hand edit while soloing: the edited document is the truth — drop the
         // solo without writing anything back.
         setSolo(new Set());
@@ -108,38 +114,35 @@ export function MixerModule({ api }: PanelProps) {
   useEffect(() => {
     let raf = 0;
     let prevTime = performance.now();
-    let anchor = performance.now();
-    let prevStatus = useStore.getState().transport.status;
 
     const loop = (now: number) => {
-      const { status, bpm } = useStore.getState().transport;
-      if (status === 'playing' && prevStatus !== 'playing') anchor = now;
-      prevStatus = status;
+      // Follow the transport's live position (audio clock) so the meter runs
+      // exactly while sound plays and stays in phase with the pattern,
+      // including pause/resume and BPM changes. 4 beats = 1 cycle.
+      const { status, position } = api.getTransport();
       const dt = now - prevTime;
       prevTime = now;
-      // Approximate cycle phase: cps = bpm/60/4 (same mapping as the scheduler).
-      const phase =
-        status === 'playing' ? (((now - anchor) / 1000) * (bpm / 60 / 4)) % 1 : 0;
+      const phase = status === 'playing' ? ((position / 4) % 1 + 1) % 1 : 0;
 
       for (const [name, canvas] of canvasesRef.current) {
         let env = envelopesRef.current.get(name);
         if (!env) {
-          env = { level: 0 };
+          env = createEnvelope();
           envelopesRef.current.set(name, env);
         }
         const buckets = activityRef.current[name];
-        const target =
-          status === 'playing' && buckets
-            ? buckets[Math.floor(phase * buckets.length) % buckets.length]
-            : 0;
+        const playing = status === 'playing' && !!buckets && buckets.length > 0;
+        const target = playing
+          ? buckets![Math.floor(phase * buckets!.length) % buckets!.length]
+          : 0;
         stepEnvelope(env, target, dt);
-        drawVuMeter(canvas, env.level);
+        drawVuMeter(canvas, env);
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [api]);
 
   const handleCanvas = (name: string, el: HTMLCanvasElement | null) => {
     if (el) canvasesRef.current.set(name, el);

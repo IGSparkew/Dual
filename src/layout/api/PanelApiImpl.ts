@@ -1,11 +1,13 @@
 import type { PanelApi, NotificationType, PanelCodeApi } from './PanelApi';
 import type { Hap } from '@core/types/hap';
+import type { TransportState } from '@core/types/transport';
 import type { AppState } from '@core/state/store';
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
 import type { EventMap, EventType } from '@core/events/event-types';
 import { codeRegion } from '@core/interpreter/impl/CodeRegionImpl';
 import { syncController } from '@core/interpreter/impl/SyncControllerImpl';
+import { scheduler } from '@core/engine/impl/SchedulerImpl';
 
 /** Façade over the CodeRegion service for a single panel. */
 const codeApi: PanelCodeApi = {
@@ -52,6 +54,10 @@ class PanelApiImpl implements PanelApi {
 
   getState<T>(selector: (state: AppState) => T): T {
     return selector(useStore.getState());
+  }
+
+  getTransport(): TransportState {
+    return scheduler.getState();
   }
 
   emit<K extends EventType>(eventType: K, payload: EventMap[K]): void {

@@ -1,0 +1,30 @@
+{
+  "id": "arranging",
+  "name": "Arranging",
+  "icon": "🎬",
+  "tree": {
+    "type": "split",
+    "axis": "y",
+    "ratio": 0.88,
+    "children": [
+      {
+        "type": "split",
+        "axis": "x",
+        "ratio": 0.2,
+        "children": [
+          { "type": "panel", "panelId": "session" },
+          {
+            "type": "split",
+            "axis": "y",
+            "ratio": 0.55,
+            "children": [
+              { "type": "panel", "panelId": "arrangement" },
+              { "type": "panel", "panelId": "editor" }
+            ]
+          }
+        ]
+      },
+      { "type": "panel", "panelId": "transport" }
+    ]
+  }
+}

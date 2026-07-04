@@ -9,5 +9,6 @@
   ],
   "win": { "target": "zip" },
   "mac": { "target": "zip" },
-  "linux": { "target": "AppImage" }
+  "linux": { "target": "AppImage" },
+  "publish": { "provider": "github", "draft": true }
 }

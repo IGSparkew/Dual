@@ -1,0 +1,272 @@
+/* ── Layout ─────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.strips {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.strips::-webkit-scrollbar {
+  height: 6px;
+}
+
+.strips::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.strips::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* ── Channel strip ───────────────────────────────────────────── */
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 72px;
+  min-width: 72px;
+  padding: 10px 6px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.strip[data-highlighted] {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+}
+
+.stripMeterRow {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-height: 80px;
+  align-items: stretch;
+}
+
+.stripGain {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.stripButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.stripBtn {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+
+.stripBtn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.stripBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stripBtn[data-kind='mute'][data-active] {
+  background: color-mix(in srgb, var(--error, #e5484d) 30%, var(--bg-primary));
+  color: var(--error, #e5484d);
+  border-color: var(--error, #e5484d);
+}
+
+.stripBtn[data-kind='solo'][data-active] {
+  background: color-mix(in srgb, #d29922 30%, var(--bg-primary));
+  color: #d29922;
+  border-color: #d29922;
+}
+
+.stripName {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stripName span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stripGroupBadge {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Fader ───────────────────────────────────────────────────── */
+
+.faderTrack {
+  position: relative;
+  width: 24px;
+  flex: 1;
+  min-height: 80px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.faderTrack[data-disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.faderFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: 0 0 3px 3px;
+  pointer-events: none;
+}
+
+.faderTick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--text-secondary);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.faderThumb {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  height: 10px;
+  margin-bottom: -5px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ── VU meter ────────────────────────────────────────────────── */
+
+.vuMeter {
+  width: 8px;
+  height: 100%;
+  min-height: 80px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+/* ── Pan knob ────────────────────────────────────────────────── */
+
+.panWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.panKnob {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.panKnob[data-disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.panPointer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.panPointer::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 2px;
+  height: 9px;
+  margin-left: -1px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.panLabel {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* ── Banners / empty state ───────────────────────────────────── */
+
+.errorBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--error, #e5484d) 14%, var(--bg-secondary));
+  border-bottom: 1px solid var(--error, #e5484d);
+  flex-shrink: 0;
+}
+
+.errorTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--error, #e5484d);
+}
+
+.errorLine {
+  font-size: 10px;
+  color: var(--text-primary);
+  opacity: 0.85;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 12px;
+  opacity: 0.7;
+}

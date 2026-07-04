@@ -47,17 +47,56 @@ interface MemberExpression extends Node {
 interface Identifier extends Node {
   name: string;
 }
+interface ArrayExpression extends Node {
+  elements: (Node | null)[];
+}
 
 /** The label used for live output lines (`$: drums`). */
 const DOLLAR_LABEL = '$';
 
-/** A query over an arbitrary expression node — structural classification only. */
+/** A query over an arbitrary expression node — structural classification only.
+ *  Arg/item offsets are relative to the queried source (it was parsed alone). */
 class ExprQueryImpl implements ExprQuery {
-  constructor(private readonly node: Node) {}
+  constructor(
+    private readonly node: Node,
+    private readonly source: string,
+  ) {}
 
   isCall(): boolean {
     return this.node.type === 'CallExpression';
   }
+
+  isArray(): boolean {
+    return this.node.type === 'ArrayExpression';
+  }
+
+  callee(): string | null {
+    const call = rootCall(this.node);
+    return call ? calleeName(call) : null;
+  }
+
+  args(): CallArg[] {
+    const call = rootCall(this.node);
+    if (!call) return [];
+    return call.arguments.map((arg) => toCallArg(arg, this.source));
+  }
+
+  items(): CallArg[] {
+    if (this.node.type !== 'ArrayExpression') return [];
+    return (this.node as ArrayExpression).elements
+      .filter((el): el is Node => el !== null)
+      .map((el) => toCallArg(el, this.source));
+  }
+}
+
+/** Project an AST node to its CallArg view over `source`. */
+function toCallArg(node: Node, source: string): CallArg {
+  return {
+    source: source.slice(node.start, node.end),
+    isIdentifier: node.type === 'Identifier',
+    start: node.start,
+    end: node.end,
+  };
 }
 
 export class CodeRegionImpl implements CodeRegion {
@@ -109,7 +148,13 @@ export class CodeRegionImpl implements CodeRegion {
     if (!stmt || stmt.type !== 'ExpressionStatement' || !stmt.expression) {
       return null;
     }
-    return new ExprQueryImpl(stmt.expression);
+    return new ExprQueryImpl(stmt.expression, source);
+  }
+
+  outputSource(code: string): string | null {
+    const output = this.locateOutput(code);
+    if (output.kind === 'none') return null;
+    return code.slice(output.start, output.end);
   }
 
   locateOutput(code: string): OutputRegion {

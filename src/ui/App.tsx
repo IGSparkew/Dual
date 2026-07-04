@@ -14,6 +14,7 @@ import '@modules/session/index';
 import '@modules/visualizer/index';
 import '@modules/mixer/index';
 import '@modules/effects/index';
+import '@modules/arrangement/index';
 
 // Load layouts from /layouts/*.json
 import '@layout/loaders/layout-loader';
@@ -31,7 +32,7 @@ export function App() {
   if (engineStatus !== 'ready') {
     return (
       <div className={styles.loading}>
-        <h1>Production Studio</h1>
+        <h1>Dual</h1>
         {engineStatus === 'init' && <p>Click anywhere to start</p>}
         {engineStatus === 'loading' && <p>Initializing audio…</p>}
       </div>

@@ -32,12 +32,22 @@ export type InitKind = 'pattern' | 'value';
 
 /**
  * A read-only view over one expression node, backed by the exact source text.
- * Lightweight structural query — secondary now that `Decl.initKind` covers the
- * declaration case; kept for ad-hoc checks on an arbitrary expression source.
+ * Compositional: `args()`/`items()` return spans whose `source` can be fed back
+ * into `readExpr` to descend one level at a time. Offsets are relative to the
+ * queried source, not to any document.
  */
 export interface ExprQuery {
   /** True for a CallExpression (possibly chained, e.g. `stack(...).gain(...)`). */
   isCall(): boolean;
+  /** True for an ArrayExpression (`[4, drums]`). */
+  isArray(): boolean;
+  /** Name of the root constructor call (`stack(a).gain(x)` → 'stack'), null
+   *  when the expression is not a call. READ data, never a known list. */
+  callee(): string | null;
+  /** Flat arguments of the root call (`[]` when the expression is not a call). */
+  args(): CallArg[];
+  /** Elements of an array expression (`[]` when it is not an array). */
+  items(): CallArg[];
 }
 
 /**
@@ -115,6 +125,11 @@ export interface CodeRegion {
 
   /** Locate the live output region (the `$:` block or a terminal expression). */
   locateOutput(code: string): OutputRegion;
+
+  /** Exact source of the output region (sliced via offsets), null when the
+   *  document has no output. Consumers classify it with `readExpr` instead of
+   *  slicing the document themselves. */
+  outputSource(code: string): string | null;
 
   /** Expressions projected by the `$:` block, each tagged `isIdentifier`.
    *  Replaces the hand-rolled slice + split + regex on the consumer side. */

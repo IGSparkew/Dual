@@ -13,6 +13,7 @@ const codeApi: PanelCodeApi = {
   list: (code) => codeRegion.list(code),
   readExpr: (source) => codeRegion.readExpr(source),
   locateOutput: (code) => codeRegion.locateOutput(code),
+  outputSource: (code) => codeRegion.outputSource(code),
   dollarExprs: (code) => codeRegion.dollarExprs(code),
   callArgs: (code, name) => codeRegion.callArgs(code, name),
   validateGraph: (decls) => codeRegion.validateGraph(decls),

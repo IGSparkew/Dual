@@ -10,5 +10,5 @@
   "win": { "target": "zip" },
   "mac": { "target": "zip" },
   "linux": { "target": "AppImage" },
-  "publish": { "provider": "github", "draft": true }
+  "publish": { "provider": "github", "releaseType": "draft" }
 }

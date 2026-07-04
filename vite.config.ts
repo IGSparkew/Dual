@@ -9,6 +9,11 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 
 export default defineConfig({
   base: './', // relative asset paths — required for file:// loading in production
+  build: {
+    // Don't copy public/samples (2.7 GB) into dist/ — the packaged app ships it
+    // via electron-builder extraResources and serves it through dual://core/samples/.
+    copyPublicDir: false,
+  },
   plugins: [
     react(),
     electron({

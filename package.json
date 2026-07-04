@@ -1,13 +1,16 @@
 {
-  "name": "struddle-daw",
+  "name": "Dual",
   "version": "0.1.0",
   "private": true,
   "license": "AGPL-3.0",
   "type": "module",
+  "author": "Sparkew",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite --port 3000",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "dist": "npm run build && electron-builder",
     "make:module": "node scripts/scaffold-module.js",
     "vendor:samples": "node scripts/vendor-samples.mjs",
     "samples:pack": "node scripts/pack-samples.mjs",
@@ -33,7 +36,10 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.5.4",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vite-plugin-electron": "^1.1.0"
   }
 }

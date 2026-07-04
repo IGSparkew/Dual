@@ -1,0 +1,13 @@
+{
+  "appId": "com.sparkew.dual",
+  "productName": "Dual",
+  "directories": { "output": "release" },
+  "files": ["dist/**/*", "dist-electron/**/*"],
+  "extraResources": [
+    { "from": "public/samples", "to": "samples" },
+    { "from": "layouts", "to": "layouts" }
+  ],
+  "win": { "target": "zip" },
+  "mac": { "target": "zip" },
+  "linux": { "target": "AppImage" }
+}

@@ -31,6 +31,8 @@ export interface PanelCodeApi {
   readExpr(source: string): ExprQuery | null;
   /** Locate the live output region (`$:` block or terminal expression). */
   locateOutput(code: string): OutputRegion;
+  /** Exact source of the output region, null when the document has none. */
+  outputSource(code: string): string | null;
   /** Expressions projected by the `$:` block, each tagged `isIdentifier`. */
   dollarExprs(code: string): DollarExpr[];
   /** Arguments of the call that initializes `name` (null if not a call). */

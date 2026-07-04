@@ -3,7 +3,7 @@
   "name": "Arrangement",
   "version": "1.0.0",
   "icon": "ListMusic",
-  "description": "Arrangement module",
+  "description": "Horizontal timeline over the arrange(...) call",
   "defaultSlot": "center-top",
   "minSize": {
     "width": 300,

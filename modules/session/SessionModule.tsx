@@ -87,10 +87,11 @@ export function SessionModule({ api }: PanelProps) {
 
   useEffect(() => {
     refresh();
-    return api.on('code:changed', ({ origin }) => {
-      // ui_action changes are our own writes (already reflected); only react to
-      // the user editing the document by hand.
-      if (origin === 'user_edit') refresh();
+    return api.on('code:changed', () => {
+      // React to hand edits AND writes from other panels (mixer mute, ...).
+      // Our own writes trigger a redundant refresh, which is harmless (pure
+      // derivation from the document).
+      refresh();
     });
   }, [api, refresh]);
 

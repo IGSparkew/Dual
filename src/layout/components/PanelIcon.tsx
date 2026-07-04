@@ -1,6 +1,6 @@
 import {
   Code2, Music, LayoutGrid, SlidersHorizontal,
-  Sliders, Clock, HelpCircle, type LucideProps,
+  Sliders, Clock, ListMusic, HelpCircle, type LucideProps,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
@@ -10,6 +10,7 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   SlidersHorizontal,
   Sliders,
   Clock,
+  ListMusic,
 };
 
 interface PanelIconProps extends LucideProps {

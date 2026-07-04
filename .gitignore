@@ -1,5 +1,11 @@
 node_modules/
 dist/
+dist-electron/
+release/
+userdata/
 .env
 .env.local
 *.local
+
+# sample archives produced by `npm run samples:pack` / consumed by `samples:unpack`
+/samples-*.tgz

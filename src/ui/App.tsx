@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import styles from './App.module.css';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
+import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
 import { useStore } from '@core/state/store';
 import { LayoutManager } from '@layout/components/LayoutManager';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
@@ -13,6 +14,7 @@ import '@modules/session/index';
 import '@modules/visualizer/index';
 import '@modules/mixer/index';
 import '@modules/effects/index';
+import '@modules/arrangement/index';
 
 // Load layouts from /layouts/*.json
 import '@layout/loaders/layout-loader';
@@ -23,13 +25,14 @@ export function App() {
   const [activeLayoutId, setActiveLayoutId] = useState('production');
 
   useEffect(() => {
-    strudelBridge.init();
+    strudelBridge.init(); // audio on first gesture
+    void sampleLoader.loadDefaults(); // register the maps right away (no audio context needed)
   }, []);
 
   if (engineStatus !== 'ready') {
     return (
       <div className={styles.loading}>
-        <h1>Production Studio</h1>
+        <h1>Dual</h1>
         {engineStatus === 'init' && <p>Click anywhere to start</p>}
         {engineStatus === 'loading' && <p>Initializing audio…</p>}
       </div>

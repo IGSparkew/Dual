@@ -2,11 +2,12 @@ import type { Hap } from "@core/types/hap";
 import type { StrudelBridge } from "../StrudelBridge";
 import { useStore } from "@core/state/store";
 
-const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput, samples } =
+const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput } =
   await import('@strudel/webaudio');
 const { repl, evalScope } = await import('@strudel/core');
 const { transpiler } = await import('@strudel/transpiler');
 const miniModule = await import('@strudel/mini');
+const tonalModule = await import('@strudel/tonal'); // .scale(), chords, note helpers
 const core = await import('@strudel/core');
 
 let scopeReady = false;
@@ -35,7 +36,8 @@ export class StrudelBridgeImpl implements StrudelBridge {
         await initAudioOnFirstClick();
         this.audioContext = getAudioContext();
         await registerSynthSounds();
-        await samples('github:tidalcycles/dirt-samples');
+        // Default samples are registered locally by sampleLoader.loadDefaults()
+        // (see App.tsx) — no network fetch from github here.
         this.replInstance = repl({
           defaultOutput: webaudioOutput,
           getTime: () => this.audioContext!.currentTime,
@@ -73,7 +75,7 @@ export class StrudelBridgeImpl implements StrudelBridge {
     if (!this.replInstance) return null;
 
     if (!scopeReady) {
-      await evalScope(core, miniModule);
+      await evalScope(core, miniModule, tonalModule);
       scopeReady = true;
     }
 

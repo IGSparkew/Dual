@@ -229,11 +229,10 @@ export function expandGroup(
 
 /** True when the live output is a hand-driven `arrange(...)` expression. */
 function isArrangeOutput(api: PanelCodeApi, code: string): boolean {
-  const output = api.locateOutput(code);
-  return (
-    output.kind === 'expression' &&
-    code.slice(output.start, output.end).trimStart().startsWith('arrange')
-  );
+  if (api.locateOutput(code).kind !== 'expression') return false;
+  const source = api.outputSource(code);
+  if (source === null) return false;
+  return api.readExpr(source)?.callee() === 'arrange';
 }
 
 /** Replace the output with an `arrange(...)` call (session → arrangement). */
@@ -258,10 +257,6 @@ export function toSession(
   code: string,
   playing: string[],
 ): { code: string; captured: string } {
-  const output = api.locateOutput(code);
-  const captured =
-    isArrangeOutput(api, code) && output.kind === 'expression'
-      ? code.slice(output.start, output.end)
-      : '';
+  const captured = isArrangeOutput(api, code) ? api.outputSource(code) ?? '' : '';
   return { code: api.setOutput(code, projectDollar(playing)), captured };
 }

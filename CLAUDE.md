@@ -90,10 +90,11 @@ modules/      # Modules graphiques (built-in + utilisateurs) — chargés dynami
 └── [user-modules]/          # Modules créés par les utilisateurs (même API, même structure)
 
 config/       # app.json, keybindings.json, default-layout.json
-presets/      # Presets effets + instruments (JSON)
-samples/      # Bibliothèque samples (user + factory) + .sample-map.json
-projects/     # Projets utilisateur (.strudel + project.json + layout.json)
-themes/       # Thèmes visuels (JSON)
+layouts/      # Layouts core (bundlés au build + seed de userdata/layouts)
+public/samples/ # Samples core vendorés (dough-samples) — Vite en dev, extraResources en prod
+electron/     # Process main Electron : paths, userdata, protocole dual://, ipc, preload
+userdata/     # Données utilisateur (layouts, samples, modules, projects, themes, presets)
+              # créé/seedé au lancement à côté de l'exécutable — gitignoré
 ```
 
 ---

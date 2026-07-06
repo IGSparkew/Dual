@@ -80,7 +80,7 @@ src/
 modules/      # Modules graphiques (built-in + utilisateurs) — chargés dynamiquement
 ├── session/                 # Session View — grille de clips
 ├── editor/                  # Code Editor — CodeMirror + coloration Strudel
-├── visualizer/              # Visualizer — héberge les CanvasVisualizers (piano-roll, drum-grid)
+├── drum-grid/               # Drum Grid — step sequencer type FL Studio sur mini-notation s()
 ├── mixer/                   # Mixer — faders, knobs, meters
 ├── mixer-track/             # Mixer Track — strip individuel par canal
 ├── effects/                 # FX Rack — chaîne d'effets visuelle
@@ -128,7 +128,7 @@ Toujours utiliser les alias Vite :
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
 import type { PanelApi } from '@layout/PanelApi';
-import { VisualizerModule } from '@modules/visualizer/VisualizerModule';
+import { DrumGridModule } from '@modules/drum-grid/DrumGridModule';
 import { Button } from '@ui/Button';
 ```
 
@@ -166,7 +166,7 @@ export const scheduler: Scheduler = new SchedulerImpl();
 **Services concernés :**
 - **Engine** : `StrudelBridge`, `Scheduler`, `HapExtractor`, `SampleLoader`
 - **Interpreter** : `CodeToVisual`, `VisualToCode`, `AstManipulator`, `SyncController`
-- **Layout** : `PanelRegistry`, `PanelApi`, `ExtensionSlots`
+- **Layout** : `PanelRegistry`, `PanelApi`, `PanelCanvasApi`, `ExtensionSlots`
 - **Events** : `EventBus`
 
 Les composants React (panneaux, UI partagée) n'utilisent **pas** ce pattern — ce sont des `.tsx` classiques.
@@ -254,6 +254,9 @@ panelAPI.dispatch(action)                 // Dispatch to store
 panelAPI.emit(eventType, payload)         // Emit inter-panel event
 panelAPI.on(eventType, handler)           // Listen to inter-panel events
 panelAPI.showNotification(message, type)  // UI notification
+panelAPI.canvas.surface(el)               // DPR-fit backing store + 2D context prêt
+panelAPI.canvas.loop(draw)                // Boucle rAF unique avec delta-temps
+panelAPI.canvas.createSet(onRelease)      // Collection de canvas par clé (listes)
 ```
 
 ### Extension Slots
@@ -347,3 +350,7 @@ Le code est évalué via `@strudel/transpiler`. Les patterns retournent des **ha
 - **Limitations Strudel pour un DAW** — solo, mute, routing nécessitent des workarounds
 - **Documentation superdough limitée** — lire le code source, contribuer upstream
 - **Performances queryArc** — cache des haps, requêtes incrémentales sur gros projets
+
+## Délégation
+- Toute manipulation de l'API Strudel (imports, evalScope, types) → strudel-specialist en premier, developer ensuite.
+- Nouvelle feature → developer → tester → reviewer.

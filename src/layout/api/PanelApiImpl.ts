@@ -8,6 +8,8 @@ import type { EventMap, EventType } from '@core/events/event-types';
 import { codeRegion } from '@core/interpreter/impl/CodeRegionImpl';
 import { syncController } from '@core/interpreter/impl/SyncControllerImpl';
 import { scheduler } from '@core/engine/impl/SchedulerImpl';
+import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
+import { createCanvasApi } from './PanelCanvasApiImpl';
 
 /** Façade over the CodeRegion service for a single panel. */
 const codeApi: PanelCodeApi = {
@@ -35,11 +37,20 @@ const codeApi: PanelCodeApi = {
 
 class PanelApiImpl implements PanelApi {
   readonly code = codeApi;
+  readonly canvas = createCanvasApi();
 
   constructor(readonly panelId: string) {}
 
   subscribeToHaps(callback: (haps: Hap[]) => void): () => void {
     return eventBus.on('haps:updated', ({ haps }) => callback(haps));
+  }
+
+  getSounds(): string[] {
+    return sampleLoader.getSoundNames();
+  }
+
+  subscribeToSounds(callback: (names: string[]) => void): () => void {
+    return sampleLoader.onSoundsChanged(callback);
   }
 
   getCode(): string {

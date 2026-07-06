@@ -13,7 +13,7 @@
         "ratio": 0.5,
         "children": [
           { "type": "panel", "panelId": "editor" },
-          { "type": "panel", "panelId": "visualizer" }
+          { "type": "panel", "panelId": "drum-grid" }
         ]
       },
       { "type": "panel", "panelId": "transport" }

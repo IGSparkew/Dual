@@ -43,8 +43,11 @@ export function MixerModule({ api }: PanelProps) {
   const preSoloRef = useRef<PreSolo | null>(null);
   const hapsRef = useRef<NormalizedHap[]>([]);
   const activityRef = useRef<Activity>({});
-  const canvasesRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const envelopesRef = useRef<Map<string, VuEnvelope>>(new Map());
+  // Keyed canvas collection — drops the strip's envelope when its canvas unmounts.
+  const canvasSetRef = useRef(
+    api.canvas.createSet((name) => envelopesRef.current.delete(name)),
+  );
 
   const frozen = errors.length > 0;
 
@@ -111,46 +114,33 @@ export function MixerModule({ api }: PanelProps) {
 
   // ─── VU loop (single rAF, draws every strip canvas via refs) ────────────────
 
-  useEffect(() => {
-    let raf = 0;
-    let prevTime = performance.now();
+  useEffect(
+    () =>
+      api.canvas.loop((dt) => {
+        // Follow the transport's live position (audio clock) so the meter runs
+        // exactly while sound plays and stays in phase with the pattern,
+        // including pause/resume and BPM changes. 4 beats = 1 cycle.
+        const { status, position } = api.getTransport();
+        const phase = status === 'playing' ? ((position / 4) % 1 + 1) % 1 : 0;
 
-    const loop = (now: number) => {
-      // Follow the transport's live position (audio clock) so the meter runs
-      // exactly while sound plays and stays in phase with the pattern,
-      // including pause/resume and BPM changes. 4 beats = 1 cycle.
-      const { status, position } = api.getTransport();
-      const dt = now - prevTime;
-      prevTime = now;
-      const phase = status === 'playing' ? ((position / 4) % 1 + 1) % 1 : 0;
-
-      for (const [name, canvas] of canvasesRef.current) {
-        let env = envelopesRef.current.get(name);
-        if (!env) {
-          env = createEnvelope();
-          envelopesRef.current.set(name, env);
-        }
-        const buckets = activityRef.current[name];
-        const playing = status === 'playing' && !!buckets && buckets.length > 0;
-        const target = playing
-          ? buckets![Math.floor(phase * buckets!.length) % buckets!.length]
-          : 0;
-        stepEnvelope(env, target, dt);
-        drawVuMeter(canvas, env);
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [api]);
-
-  const handleCanvas = (name: string, el: HTMLCanvasElement | null) => {
-    if (el) canvasesRef.current.set(name, el);
-    else {
-      canvasesRef.current.delete(name);
-      envelopesRef.current.delete(name);
-    }
-  };
+        canvasSetRef.current.forEach((canvas, name) => {
+          let env = envelopesRef.current.get(name);
+          if (!env) {
+            env = createEnvelope();
+            envelopesRef.current.set(name, env);
+          }
+          const buckets = activityRef.current[name];
+          const playing = status === 'playing' && !!buckets && buckets.length > 0;
+          const target = playing
+            ? buckets![Math.floor(phase * buckets!.length) % buckets!.length]
+            : 0;
+          stepEnvelope(env, target, dt);
+          const surface = api.canvas.surface(canvas);
+          if (surface) drawVuMeter(surface, env);
+        });
+      }),
+    [api],
+  );
 
   // ─── Commits (one write each) ───────────────────────────────────────────────
 
@@ -238,7 +228,7 @@ export function MixerModule({ api }: PanelProps) {
               onPan={handlePan}
               onMute={handleMute}
               onSolo={handleSolo}
-              onCanvas={handleCanvas}
+              onCanvas={canvasSetRef.current.ref(strip.name)}
             />
           ))}
         </div>

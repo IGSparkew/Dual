@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Merge, Split, Plus } from 'lucide-react';
-import type { DrumGrid, GridClip } from '../drum-grid';
+import type { BankInfo, DrumGrid, GridClip } from '../drum-grid';
 import styles from '../DrumGridModule.module.css';
 
 interface DrumGridToolbarProps {
@@ -11,7 +11,8 @@ interface DrumGridToolbarProps {
   bank: string | null;
   stepChoices: readonly number[];
   sampleSuggestions: string[];
-  bankChoices: string[];
+  /** Available banks; `missing` lists the current grid's uncovered instruments. */
+  bankChoices: BankInfo[];
   onSelectClip: (name: string) => void;
   onStepCount: (n: number) => void;
   onToggleForm: () => void;
@@ -37,6 +38,13 @@ export function DrumGridToolbar({
   // Starts (and resets) empty: a datalist filters by the current value, so a
   // pre-filled "bd" would hide every other suggestion.
   const [sample, setSample] = useState('');
+
+  // A hand-written `.bank("rolandtr909")` matches RolandTR909 case-insensitively
+  // (superdough's lookup is too) — select the canonical option instead of adding
+  // a duplicate. Truly unknown banks keep their ad hoc option below.
+  const canonicalBank = bank
+    ? bankChoices.find((b) => b.name.toLowerCase() === bank.toLowerCase())?.name ?? bank
+    : bank;
 
   const addRow = () => {
     const name = sample.trim();
@@ -68,15 +76,20 @@ export function DrumGridToolbar({
         <span className={styles.toolbarLabel}>Bank</span>
         <select
           className={styles.select}
-          value={bank ?? ''}
+          value={canonicalBank ?? ''}
           disabled={active === null}
           onChange={(e) => onSetBank(e.target.value)}
           title="Banque de batterie appliquée au clip — .bank(…)"
         >
           <option value="">— défaut</option>
+          {/* Hand-written bank unknown to the sound map — keep it selectable. */}
+          {canonicalBank && !bankChoices.some((b) => b.name === canonicalBank) && (
+            <option value={canonicalBank}>{canonicalBank}</option>
+          )}
           {bankChoices.map((b) => (
-            <option key={b} value={b}>
-              {b}
+            <option key={b.name} value={b.name}>
+              {b.name}
+              {b.missing.length > 0 ? ` — manque : ${b.missing.join(', ')}` : ''}
             </option>
           ))}
         </select>

@@ -136,14 +136,20 @@ export class SampleLoaderImpl implements SampleLoader {
     // callback per microtask to keep subscribers cheap.
     let scheduled = false;
     let disposed = false;
-    const unbind = soundStore.listen(() => {
+    const schedule = () => {
       if (scheduled) return;
       scheduled = true;
       queueMicrotask(() => {
         scheduled = false;
         if (!disposed) cb(this.getSoundNames());
       });
-    });
+    };
+    const unbind = soundStore.listen(schedule);
+    // Replay the current list on subscribe (same coalesced path): nanostores'
+    // listen does not emit the current value, so a pack registered between a
+    // caller's initial getSoundNames() read and this subscription would
+    // otherwise be lost.
+    schedule();
     return () => {
       disposed = true;
       unbind();

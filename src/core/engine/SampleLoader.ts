@@ -28,7 +28,9 @@ export interface SampleLoader {
    * Subscribe to sound-map changes (packs loading, user samples registered
    * after startup via registerFile). The callback receives the same sorted,
    * `_`-filtered list as getSoundNames(). Bursts of registrations (a pack maps
-   * hundreds of keys synchronously) are coalesced into a single call.
+   * hundreds of keys synchronously) are coalesced into a single call. Replays
+   * the current list once on subscribe (also coalesced), so nothing registered
+   * between an initial getSoundNames() read and the subscription is lost.
    * Returns an unsubscribe function.
    */
   onSoundsChanged(cb: (names: string[]) => void): () => void;

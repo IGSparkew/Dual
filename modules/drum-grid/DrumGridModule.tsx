@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 import {
   addRow,
   cycleSubHits,
+  deriveBankChoices,
   deriveClips,
   isSampleName,
+  missingRowSamples,
   orderRows,
   removeRow,
   renameRow,
@@ -13,7 +15,6 @@ import {
   setStepCount,
   toggleStep,
   writeGrid,
-  DRUM_BANKS,
   DRUM_SAMPLES,
   STEP_CHOICES,
   type DrumGrid,
@@ -45,6 +46,12 @@ export function DrumGridModule({ api }: PanelProps) {
   const [hover, setHover] = useState<CellHit | null>(null);
   // Row label being renamed (index into the displayed rows), null when idle.
   const [editing, setEditing] = useState<number | null>(null);
+  // Registered sound names (lowercase superdough keys). The subscription
+  // replays the current list on subscribe (no gap with this initial read,
+  // which only avoids a first-render flash) and tracks packs loading later.
+  const [sounds, setSounds] = useState<string[]>(() => api.getSounds());
+
+  useEffect(() => api.subscribeToSounds(setSounds), [api]);
 
   const activeRef = useRef<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -108,20 +115,38 @@ export function DrumGridModule({ api }: PanelProps) {
   );
 
   // The grid as drawn: derived rows + the empty overlay rows.
-  const displayed: DrumGrid | null = grid
-    ? extras.length > 0
-      ? {
-          ...grid,
-          rows: [
-            ...grid.rows,
-            ...extras.map((sample) => ({
-              sample,
-              steps: new Array<number>(grid.stepCount).fill(0),
-            })),
-          ],
-        }
-      : grid
-    : null;
+  const displayed = useMemo<DrumGrid | null>(
+    () =>
+      grid
+        ? extras.length > 0
+          ? {
+              ...grid,
+              rows: [
+                ...grid.rows,
+                ...extras.map((sample) => ({
+                  sample,
+                  steps: new Array<number>(grid.stepCount).fill(0),
+                })),
+              ],
+            }
+          : grid
+        : null,
+    [grid, extras],
+  );
+
+  // ─── Sound availability (bank choices + unresolvable rows) ──────────────────
+  // Memoized: hover tracking re-renders on every pointer move, and these scan
+  // the whole sound map.
+
+  const activeBank = clips.find((c) => c.name === active)?.bank ?? null;
+  // bankChoices reads `grid` (document rows) while missingSamples reads
+  // `displayed` — intended: overlay rows are not in the code yet (no playback
+  // error possible) but their labels should still warn.
+  const bankChoices = useMemo(() => deriveBankChoices(sounds, grid), [sounds, grid]);
+  const missingSamples = useMemo(
+    () => (displayed ? missingRowSamples(sounds, displayed, activeBank) : new Set<string>()),
+    [sounds, displayed, activeBank],
+  );
 
   // Accent color per displayed row — first sight of a sample claims the next
   // palette index, kept in colorsRef for the session (idempotent on re-render).
@@ -282,6 +307,15 @@ export function DrumGridModule({ api }: PanelProps) {
   const handleBank = (bank: string) => {
     const name = activeRef.current;
     if (!name) return;
+    // Partial kits are common — warn (in the UI language) but still apply:
+    // superdough only errors on the missing instruments at playback.
+    const info = bankChoices.find((b) => b.name === bank);
+    if (info && info.missing.length > 0) {
+      api.showNotification(
+        `Banque « ${bank} » incomplète — introuvable(s) : ${info.missing.join(', ')}`,
+        'warning',
+      );
+    }
     api.code.write(setBank(api.code, api.getCode(), name, bank));
   };
 
@@ -306,7 +340,6 @@ export function DrumGridModule({ api }: PanelProps) {
 
   const complex = active !== null && grid === null;
   const rows = displayed?.rows ?? [];
-  const activeBank = clips.find((c) => c.name === active)?.bank ?? null;
 
   return (
     <div className={styles.panel}>
@@ -327,7 +360,7 @@ export function DrumGridModule({ api }: PanelProps) {
         onSetBank={handleBank}
         stepChoices={STEP_CHOICES}
         sampleSuggestions={DRUM_SAMPLES}
-        bankChoices={DRUM_BANKS}
+        bankChoices={bankChoices}
       />
 
       {clips.length === 0 && (
@@ -364,8 +397,18 @@ export function DrumGridModule({ api }: PanelProps) {
                   />
                 ) : (
                   <span
-                    className={styles.labelName}
-                    title={`${row.sample} — double-clic pour renommer`}
+                    className={
+                      missingSamples.has(row.sample)
+                        ? `${styles.labelName} ${styles.labelMissing}`
+                        : styles.labelName
+                    }
+                    title={
+                      missingSamples.has(row.sample)
+                        ? activeBank
+                          ? `Introuvable dans la banque ${activeBank} — double-clic pour renommer`
+                          : 'Sample introuvable — double-clic pour renommer'
+                        : `${row.sample} — double-clic pour renommer`
+                    }
                     onDoubleClick={() => setEditing(i)}
                   >
                     {row.sample}

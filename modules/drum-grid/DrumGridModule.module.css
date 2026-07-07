@@ -122,6 +122,12 @@
   cursor: text;
 }
 
+/* Row sample that will not resolve at playback (missing from the bank). Same
+   warning yellow as the notification toasts. */
+.labelMissing {
+  color: var(--warning, #facc15);
+}
+
 .labelEdit {
   flex: 1;
   min-width: 0;

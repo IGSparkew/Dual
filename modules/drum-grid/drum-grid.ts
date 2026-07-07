@@ -119,9 +119,10 @@ function machineKits(sounds: string[]): Map<string, Set<string>> {
 /**
  * The banks the toolbar offers: DRUM_BANKS (canonical casing for `.bank(...)`)
  * filtered to the machines actually registered, then the prefixes discovered
- * at runtime (user packs) appended alphabetically, displayed as-is
- * (lowercase). Each carries the grid instruments its kit does not cover —
- * partial kits are common (RolandSH09 only ships `bd`).
+ * at runtime (user packs whose kit covers at least one DRUM_SAMPLES
+ * instrument) appended alphabetically, displayed as-is (lowercase). Each
+ * carries the grid instruments its kit does not cover — partial kits are
+ * common (RolandSH09 only ships `bd`).
  *
  * Before any pack has registered (`sounds` empty) this degrades to the full
  * DRUM_BANKS list with empty `missing` — no false negatives while loading.
@@ -138,7 +139,15 @@ export function deriveBankChoices(sounds: string[], grid: DrumGrid | null): Bank
 
   const knownSet = new Set(DRUM_BANKS.map((bank) => bank.toLowerCase()));
   const known = DRUM_BANKS.filter((bank) => kits.has(bank.toLowerCase()));
-  const discovered = [...kits.keys()].filter((machine) => !knownSet.has(machine)).sort();
+  // Underscored names are not always machine sounds: vcsl.json registers keys
+  // like `recorder_alto` that would each become an unusable pseudo-bank. Only
+  // keep a discovered prefix whose kit covers at least one drum instrument
+  // (real user kits ship `mykit_bd`-style names). DRUM_BANKS is exempt.
+  const drums = new Set(DRUM_SAMPLES);
+  const discovered = [...kits.keys()]
+    .filter((machine) => !knownSet.has(machine))
+    .filter((machine) => [...kits.get(machine)!].some((instr) => drums.has(instr)))
+    .sort();
 
   return [
     ...known.map((bank) => toInfo(bank, kits.get(bank.toLowerCase())!)),

@@ -78,7 +78,8 @@ export interface PanelApi {
    *  this initial read with `subscribeToSounds`. */
   getSounds(): string[];
   /** Subscribe to sound-map changes (packs loading, user samples). Coalesced;
-   *  receives the same list as `getSounds()`. Returns an unsubscribe. */
+   *  receives the same list as `getSounds()`, replayed once on subscribe (no
+   *  gap with an initial read). Returns an unsubscribe. */
   subscribeToSounds(callback: (names: string[]) => void): () => void;
   getCode(): string;
   modifyCode(transform: (code: string) => string): void;

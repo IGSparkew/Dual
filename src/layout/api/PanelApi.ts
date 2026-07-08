@@ -10,8 +10,10 @@ import type {
   GraphError,
   OutputRegion,
 } from '@core/interpreter/CodeRegion';
+import type { PanelCanvasApi } from './PanelCanvasApi';
 
 export type { Notification };
+export type { CanvasSet, CanvasSurface, PanelCanvasApi } from './PanelCanvasApi';
 export type NotificationType = Notification['type'];
 
 /**
@@ -68,7 +70,17 @@ export interface PanelCodeApi {
 export interface PanelApi {
   readonly panelId: string;
   readonly code: PanelCodeApi;
+  /** Canvas toolkit: DPR surfaces, rAF loop, keyed canvas collections. */
+  readonly canvas: PanelCanvasApi;
   subscribeToHaps(callback: (haps: Hap[]) => void): () => void;
+  /** Names of the sounds registered in superdough's sound map, sorted,
+   *  `_`-keys excluded. Keys are LOWERCASE — packs load after mount, so pair
+   *  this initial read with `subscribeToSounds`. */
+  getSounds(): string[];
+  /** Subscribe to sound-map changes (packs loading, user samples). Coalesced;
+   *  receives the same list as `getSounds()`, replayed once on subscribe (no
+   *  gap with an initial read). Returns an unsubscribe. */
+  subscribeToSounds(callback: (names: string[]) => void): () => void;
   getCode(): string;
   modifyCode(transform: (code: string) => string): void;
   getState<T>(selector: (state: AppState) => T): T;

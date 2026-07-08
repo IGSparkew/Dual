@@ -1,6 +1,6 @@
 {
   "name": "Dual",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "AGPL-3.0",
   "type": "module",
@@ -14,7 +14,8 @@
     "make:module": "node scripts/scaffold-module.js",
     "vendor:samples": "node scripts/vendor-samples.mjs",
     "samples:pack": "node scripts/pack-samples.mjs",
-    "samples:unpack": "node scripts/unpack-samples.mjs"
+    "samples:unpack": "node scripts/unpack-samples.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",
@@ -40,6 +41,7 @@
     "electron-builder": "^26.15.3",
     "typescript": "^5.5.4",
     "vite": "^8.0.16",
-    "vite-plugin-electron": "^1.1.0"
+    "vite-plugin-electron": "^1.1.0",
+    "vitest": "^4.1.10"
   }
 }

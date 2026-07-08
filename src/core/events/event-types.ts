@@ -1,5 +1,6 @@
 import type { Hap } from '../types/hap';
 import type { TransportState } from '../types/transport';
+import type { FxChainEntry } from '../types/fx';
 
 export interface EventMap {
   'haps:updated': { haps: Hap[]; source: string };
@@ -9,7 +10,7 @@ export interface EventMap {
   'note:deleted': { note: unknown; begin: number; end: number };
   'transport:state': TransportState;
   'mixer:changed': { clipId: string; param: string; value: number };
-  'fx:changed': { clipId: string; fxChain: unknown[] };
+  'fx:changed': { clipId: string; fxChain: FxChainEntry[] };
   'layout:changed': { layout: unknown };
   'sample:dropped': { samplePath: string; targetClipId: string };
 }

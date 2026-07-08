@@ -83,7 +83,7 @@ modules/      # Modules graphiques (built-in + utilisateurs) — chargés dynami
 ├── drum-grid/               # Drum Grid — step sequencer type FL Studio sur mini-notation s()
 ├── mixer/                   # Mixer — faders, knobs, meters
 ├── mixer-track/             # Mixer Track — strip individuel par canal
-├── effects/                 # FX Rack — chaîne d'effets visuelle
+├── effects/                 # FX Rack — ajoute des effets audio au son des clips (room, delay, lpf… cf. doc Strudel en ligne)
 ├── automation/              # Automation — courbes → patterns Strudel
 ├── browser/                 # Browser — samples + chopper
 ├── transport/               # Transport — play/pause/stop/BPM

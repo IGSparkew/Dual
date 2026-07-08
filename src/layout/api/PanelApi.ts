@@ -4,6 +4,7 @@ import type { AppState, Notification } from '@core/state/store';
 import type { EventMap, EventType } from '@core/events/event-types';
 import type {
   CallArg,
+  ChainLink,
   Decl,
   DollarExpr,
   ExprQuery,
@@ -40,6 +41,9 @@ export interface PanelCodeApi {
   dollarExprs(code: string): DollarExpr[];
   /** Arguments of the call that initializes `name` (null if not a call). */
   callArgs(code: string, name: string): CallArg[] | null;
+  /** Method calls chained on `name`'s initializer, in source order, excluding
+   *  the root constructor. null when the decl is absent or not a call. */
+  chainCalls(code: string, name: string): ChainLink[] | null;
   /** Validate the dependency graph (`[]` = OK). */
   validateGraph(decls: Decl[]): GraphError[];
 

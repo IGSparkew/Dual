@@ -15,7 +15,8 @@ interface ChannelStripProps {
   onPan: (strip: Strip, value: number) => void;
   onMute: (strip: Strip) => void;
   onSolo: (strip: Strip) => void;
-  onCanvas: (name: string, el: HTMLCanvasElement | null) => void;
+  /** Stable callback ref from the module's CanvasSet. */
+  onCanvas: (el: HTMLCanvasElement | null) => void;
 }
 
 /** One mixer channel: pan knob, VU + fader, gain readout, mute/solo, name. */
@@ -38,7 +39,7 @@ export function ChannelStrip({
       <PanKnob value={pan} disabled={disabled} onCommit={(v) => onPan(strip, v)} />
 
       <div className={styles.stripMeterRow}>
-        <VuMeter onCanvas={(el) => onCanvas(strip.name, el)} />
+        <VuMeter onCanvas={onCanvas} />
         <Fader
           value={gain}
           min={0}

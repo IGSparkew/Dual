@@ -9,6 +9,7 @@
  * exponential release — so the bar jumps on hits and settles in between
  * instead of re-triggering on every bucket. A peak-hold marker rides on top.
  */
+import type { CanvasSurface } from '@layout/api/PanelCanvasApi';
 
 /** Smoothed meter state — fast attack, exponential release. */
 export interface VuEnvelope {
@@ -67,22 +68,12 @@ function zoneColor(fraction: number): string {
 }
 
 /**
- * Draw the meter into `canvas` as a bottom-up LED ladder, resizing its backing
- * store to the element's CSS size × devicePixelRatio when needed. Unlit LEDs
- * stay faintly visible; the peak-hold LED is drawn lit even above the level.
+ * Draw the meter as a bottom-up LED ladder over a prepared surface
+ * (`api.canvas.surface` owns the DPR sizing and the clear). Unlit LEDs stay
+ * faintly visible; the peak-hold LED is drawn lit even above the level.
  */
-export function drawVuMeter(canvas: HTMLCanvasElement, env: VuEnvelope): void {
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
-  const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w;
-    canvas.height = h;
-  }
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  ctx.clearRect(0, 0, w, h);
+export function drawVuMeter(surface: CanvasSurface, env: VuEnvelope): void {
+  const { ctx, width: w, height: h, dpr } = surface;
 
   const gap = Math.max(1, Math.round(1.5 * dpr));
   const block = Math.max(2, Math.round(3 * dpr));

@@ -1,5 +1,33 @@
 import type { SampleLoader } from '../SampleLoader';
 import type { DualDesktop } from '@core/types/desktop';
+// Static import is safe here: superdough's module evaluation is pure JS — the
+// AudioContext is only created lazily inside getAudioContext(). It is also the
+// SAME module instance the dynamically imported @strudel/webaudio writes into
+// (webaudio's dist externalizes superdough via `export * from 'superdough'`),
+// so this store reflects everything samples() registers. We import it directly
+// (not via @strudel/webaudio) so getSoundNames() can stay synchronous without
+// eagerly pulling the whole webaudio/core/draw chain at startup.
+import { soundMap } from 'superdough';
+
+/**
+ * Minimal typed view of superdough's `soundMap` (a nanostores map, see
+ * node_modules/superdough/superdough.mjs `export const soundMap = map()`).
+ *
+ * Shape: `Record<soundName, { onTrigger, data }>` where `data` is e.g.
+ * `{ type: 'sample', samples: string[] | Record<note, string[]>, baseUrl }`
+ * for sample packs or `{ type: 'synth', prebake: true }` for built-in synths.
+ * Keys are LOWERCASED by registerSound (whitespace → `_`): the
+ * tidal-drum-machines pack maps `RolandTR909_bd` in its json, stored as
+ * `rolandtr909_bd` (`<machine>_<instrument>`). Residual meta keys like `_base`
+ * from user-provided maps are NOT filtered by superdough, hence our `_` filter.
+ */
+interface SoundMapStore {
+  get(): Record<string, unknown>;
+  /** nanostores listen: fires on each setKey/set, returns an unbind function. */
+  listen(cb: (sounds: Record<string, unknown>) => void): () => void;
+}
+
+const soundStore = soundMap as SoundMapStore;
 
 // Tracks blob URLs created for registered files so they can be revoked on demand
 const blobUrls = new Map<string, string>();
@@ -94,6 +122,38 @@ export class SampleLoaderImpl implements SampleLoader {
 
   async preload(urls: string[]): Promise<void> {
     await Promise.all(urls.map((url) => this.load(url)));
+  }
+
+  getSoundNames(): string[] {
+    return Object.keys(soundStore.get())
+      .filter((name) => !name.startsWith('_'))
+      .sort();
+  }
+
+  onSoundsChanged(cb: (names: string[]) => void): () => void {
+    // samples() registers one store key per sound, so loading a pack fires
+    // hundreds of synchronous notifications. Coalesce them into a single
+    // callback per microtask to keep subscribers cheap.
+    let scheduled = false;
+    let disposed = false;
+    const schedule = () => {
+      if (scheduled) return;
+      scheduled = true;
+      queueMicrotask(() => {
+        scheduled = false;
+        if (!disposed) cb(this.getSoundNames());
+      });
+    };
+    const unbind = soundStore.listen(schedule);
+    // Replay the current list on subscribe (same coalesced path): nanostores'
+    // listen does not emit the current value, so a pack registered between a
+    // caller's initial getSoundNames() read and this subscription would
+    // otherwise be lost.
+    schedule();
+    return () => {
+      disposed = true;
+      unbind();
+    };
   }
 
   private async getContext(): Promise<AudioContext> {

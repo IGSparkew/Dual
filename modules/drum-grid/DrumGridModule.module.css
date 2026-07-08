@@ -1,0 +1,225 @@
+/* ── Layout ─────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.toolbarLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.select,
+.input {
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.input {
+  width: 72px;
+}
+
+.select:disabled,
+.input:disabled {
+  opacity: 0.4;
+}
+
+.toolbarBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.toolbarBtn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.toolbarBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Grid area ──────────────────────────────────────────────── */
+
+.gridArea {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 10px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.labels {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 84px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px; /* = ROW_HEIGHT in grid-renderer.ts */
+  padding-right: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.labelName {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+
+/* Row sample that will not resolve at playback (missing from the bank). Same
+   warning yellow as the notification toasts. */
+.labelMissing {
+  color: var(--warning, #facc15);
+}
+
+.labelEdit {
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  outline: none;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.removeBtn {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s, color 0.1s;
+}
+
+.labelRow:hover .removeBtn {
+  opacity: 1;
+}
+
+.removeBtn:hover {
+  color: var(--error, #e5484d);
+}
+
+.noRows {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.canvasWrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* ── Banners / hints ────────────────────────────────────────── */
+
+.infoBanner {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  border-bottom: 1px solid var(--accent);
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-secondary);
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.hint {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  border-top: 1px solid var(--border);
+}

@@ -106,6 +106,37 @@
   border-color: #d29922;
 }
 
+.stripFx {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.stripFxBadge {
+  padding: 1px 4px;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  white-space: nowrap;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.stripFx:hover .stripFxBadge {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.stripFxBadge[data-more] {
+  opacity: 0.8;
+}
+
 .stripName {
   display: flex;
   align-items: center;

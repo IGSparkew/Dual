@@ -6,17 +6,31 @@ import styles from '../EffectsModule.module.css';
 interface FxUnitProps {
   unit: RackUnit;
   disabled: boolean;
+  /** Candidate victim clips for a target unit (duck) — every clip but the
+   *  rack's own. Ignored by units without a target facet. */
+  targetChoices: string[];
   onParam: (unit: UnitDef, method: string, value: number) => void;
   onEnum: (unit: UnitDef, choice: string) => void;
+  onTarget: (unit: UnitDef, victim: string) => void;
   onRemove: (unit: UnitDef) => void;
 }
 
 /**
- * One rack unit: title, knobs (or vowel dropdown), remove button. A locked
- * unit ("managed in code": pattern strings, const refs, duplicated params) is
- * shown but read-only — the Code Editor owns it and the rack preserves it.
+ * One rack unit: title, knobs (or vowel dropdown; duck adds a victim-clip
+ * dropdown before its knobs), remove button. A locked unit ("managed in
+ * code": pattern strings, const refs, duplicated params, unresolvable duck
+ * target) is shown but read-only — the Code Editor owns it and the rack
+ * preserves it.
  */
-export function FxUnit({ unit, disabled, onParam, onEnum, onRemove }: FxUnitProps) {
+export function FxUnit({
+  unit,
+  disabled,
+  targetChoices,
+  onParam,
+  onEnum,
+  onTarget,
+  onRemove,
+}: FxUnitProps) {
   const frozen = disabled || unit.locked;
 
   return (
@@ -41,6 +55,32 @@ export function FxUnit({ unit, disabled, onParam, onEnum, onRemove }: FxUnitProp
           <X size={11} />
         </button>
       </div>
+
+      {unit.def.target && (
+        <div className={styles.unitTargetRow}>
+          <select
+            className={styles.unitSelect}
+            value={unit.targetClip ?? ''}
+            disabled={frozen || targetChoices.length === 0}
+            onChange={(e) => onTarget(unit.def, e.target.value)}
+            title="Clip victime — son orbit est atténué à chaque hap de ce clip"
+          >
+            <option value="" disabled>
+              cible…
+            </option>
+            {/* An unresolvable-but-shown target keeps its own entry so the
+                select does not silently jump to another clip. */}
+            {unit.targetClip !== null && !targetChoices.includes(unit.targetClip) && (
+              <option value={unit.targetClip}>{unit.targetClip}</option>
+            )}
+            {targetChoices.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className={styles.unitBody}>
         {unit.def.enum ? (

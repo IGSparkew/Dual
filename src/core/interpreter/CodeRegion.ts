@@ -104,6 +104,20 @@ export interface CallArg {
   end: number;
 }
 
+/** One method call chained on an initializer (`s("bd").lpf(800)` → the
+ *  `.lpf(800)` link). Spans are document-absolute; `start..end` covers
+ *  `.method(args)` exactly so removing a link is a clean splice. */
+export interface ChainLink {
+  /** Method name (`lpf`, `gain`, …). READ data, never a known list. */
+  method: string;
+  /** Flat arguments of the call, with document-absolute spans. */
+  args: CallArg[];
+  /** Offset of the `.` that opens the link. */
+  start: number;
+  /** Offset just after the closing `)`. */
+  end: number;
+}
+
 /** A structural defect of the declaration graph (`[]` means the graph is OK). */
 export interface GraphError {
   kind: 'dead-ref' | 'cycle' | 'duplicate' | 'syntax';
@@ -140,6 +154,11 @@ export interface CodeRegion {
    *  FLAT: descends only one level; for an argument that is itself a call, call
    *  `callArgs` again on its span. */
   callArgs(code: string, name: string): CallArg[] | null;
+
+  /** Method calls chained on a declaration's initializer, in source order.
+   *  Excludes the root constructor (`s("bd").lpf(800).room(0.4)` → two links,
+   *  `lpf` then `room`). null when the declaration is absent or not a call. */
+  chainCalls(code: string, name: string): ChainLink[] | null;
 
   /** Validate the dependency graph: dead refs, cycles, duplicate names, syntax.
    *  Returns `[]` when the graph is valid. */

@@ -20,6 +20,7 @@ const codeApi: PanelCodeApi = {
   outputSource: (code) => codeRegion.outputSource(code),
   dollarExprs: (code) => codeRegion.dollarExprs(code),
   callArgs: (code, name) => codeRegion.callArgs(code, name),
+  chainCalls: (code, name) => codeRegion.chainCalls(code, name),
   validateGraph: (decls) => codeRegion.validateGraph(decls),
   // Transforms
   insertDecl: (code, declText) => codeRegion.insertDecl(code, declText),

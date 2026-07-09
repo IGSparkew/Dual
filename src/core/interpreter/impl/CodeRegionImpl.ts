@@ -6,6 +6,7 @@ import type {
   OutputRegion,
   DollarExpr,
   CallArg,
+  ChainLink,
   GraphError,
 } from '../CodeRegion';
 import { astManipulatorImpl } from './AstManipulatorImpl';
@@ -233,6 +234,49 @@ export class CodeRegionImpl implements CodeRegion {
           start: arg.start,
           end: arg.end,
         }));
+      }
+    }
+    return null;
+  }
+
+  chainCalls(code: string, name: string): ChainLink[] | null {
+    let ast: Program;
+    try {
+      ast = astManipulatorImpl.parse(code) as Program;
+    } catch {
+      return null;
+    }
+
+    for (const stmt of ast.body) {
+      if (stmt.type !== 'VariableDeclaration') continue;
+      for (const d of (stmt as VariableDeclaration).declarations) {
+        if (d.id.type !== 'Identifier' || d.id.name !== name || !d.init) continue;
+        if (d.init.type !== 'CallExpression') return null;
+
+        // Walk the chain outermost → innermost, collecting every `.method(args)`
+        // link; the innermost call with a non-member callee is the root
+        // constructor and is excluded by construction.
+        const links: ChainLink[] = [];
+        let current: Node = d.init;
+        while (current.type === 'CallExpression') {
+          const call = current as CallExpression;
+          if (call.callee.type !== 'MemberExpression') break; // root constructor
+          const member = call.callee as MemberExpression;
+          if (!member.computed && member.property.name) {
+            // Offset of the `.` — the first dot between the receiver's end and
+            // the property (whitespace/newlines may sit in between).
+            let dot = member.object.end;
+            while (dot < member.property.start && code[dot] !== '.') dot++;
+            links.push({
+              method: member.property.name,
+              args: call.arguments.map((arg) => toCallArg(arg, code)),
+              start: dot,
+              end: call.end,
+            });
+          }
+          current = member.object;
+        }
+        return links.reverse();
       }
     }
     return null;

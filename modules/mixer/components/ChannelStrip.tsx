@@ -6,8 +6,13 @@ import { PanKnob } from './PanKnob';
 import { VuMeter } from './VuMeter';
 import styles from '../MixerModule.module.css';
 
+/** Badges shown before folding the rest into a `+n` counter. */
+const MAX_BADGES = 3;
+
 interface ChannelStripProps {
   strip: Strip;
+  /** Chained method names on the clip, minus gain/pan (FX badges). */
+  badges: string[];
   soloed: boolean;
   highlighted: boolean;
   disabled: boolean;
@@ -15,13 +20,17 @@ interface ChannelStripProps {
   onPan: (strip: Strip, value: number) => void;
   onMute: (strip: Strip) => void;
   onSolo: (strip: Strip) => void;
+  /** Click on the badge row — selects the clip (FX Rack focus). */
+  onFxClick: (strip: Strip) => void;
   /** Stable callback ref from the module's CanvasSet. */
   onCanvas: (el: HTMLCanvasElement | null) => void;
 }
 
-/** One mixer channel: pan knob, VU + fader, gain readout, mute/solo, name. */
+/** One mixer channel: pan knob, VU + fader, gain readout, mute/solo, FX
+ *  badges, name. */
 export function ChannelStrip({
   strip,
+  badges,
   soloed,
   highlighted,
   disabled,
@@ -29,6 +38,7 @@ export function ChannelStrip({
   onPan,
   onMute,
   onSolo,
+  onFxClick,
   onCanvas,
 }: ChannelStripProps) {
   const gain = strip.gain ?? GAIN_DEFAULT;
@@ -74,6 +84,28 @@ export function ChannelStrip({
           S
         </button>
       </div>
+
+      {badges.length > 0 && (
+        <div
+          className={styles.stripFx}
+          role="button"
+          tabIndex={0}
+          title={`FX : ${badges.join(', ')} — clic pour ouvrir dans le FX Rack`}
+          onClick={() => onFxClick(strip)}
+          onKeyDown={(e) => e.key === 'Enter' && onFxClick(strip)}
+        >
+          {badges.slice(0, MAX_BADGES).map((method) => (
+            <span key={method} className={styles.stripFxBadge}>
+              {method}
+            </span>
+          ))}
+          {badges.length > MAX_BADGES && (
+            <span className={styles.stripFxBadge} data-more>
+              +{badges.length - MAX_BADGES}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className={styles.stripName} title={strip.name}>
         {strip.isGroup && <Layers size={9} className={styles.stripGroupBadge} />}

@@ -13,6 +13,7 @@
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 import type { Decl } from '@core/interpreter/CodeRegion';
 import type { NormalizedHap } from '@core/types/hap';
+import { FX_METHODS } from '@core/types/fx';
 
 // ─── Naming convention (clip ↔ its config consts) ────────────────────────────
 // Mirrors the session module's convention — the two modules agree on the same
@@ -91,6 +92,28 @@ export function deriveStrips(api: PanelCodeApi, defs: Decl[]): Strip[] {
     });
   }
   return strips;
+}
+
+// ─── FX badges (shared FX vocabulary from @core/types/fx) ────────────────────
+
+/**
+ * FX method names chained on a clip's initializer, deduplicated in source
+ * order. Filtered on the shared `FX_METHODS` contract so non-FX chain methods
+ * (`bank`, `fast`, `gain`…) never show up as badges; what each method *means*
+ * is still the FX Rack's business.
+ */
+export function fxBadges(api: PanelCodeApi, code: string, name: string): string[] {
+  const links = api.chainCalls(code, name);
+  if (!links) return [];
+  const seen = new Set<string>();
+  const badges: string[] = [];
+  for (const link of links) {
+    if (!FX_METHODS.has(link.method)) continue;
+    if (seen.has(link.method)) continue;
+    seen.add(link.method);
+    badges.push(link.method);
+  }
+  return badges;
 }
 
 // ─── Serialization ───────────────────────────────────────────────────────────

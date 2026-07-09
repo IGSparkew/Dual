@@ -6,6 +6,7 @@ import {
   deriveActivity,
   deriveStrips,
   engageSolo,
+  fxBadges,
   releaseSolo,
   setGain,
   setPan,
@@ -34,6 +35,7 @@ import styles from './MixerModule.module.css';
  */
 export function MixerModule({ api }: PanelProps) {
   const [strips, setStrips] = useState<Strip[]>([]);
+  const [badges, setBadges] = useState<Record<string, string[]>>({});
   const [errors, setErrors] = useState<GraphError[]>([]);
   const [solo, setSoloState] = useState<Set<string>>(new Set());
   const [highlighted, setHighlighted] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function MixerModule({ api }: PanelProps) {
     const raw = deriveStrips(api.code, defs);
     stripsRef.current = raw;
     setStrips(raw);
+    setBadges(Object.fromEntries(raw.map((s) => [s.name, fxBadges(api.code, code, s.name)])));
     setErrors(api.code.validateGraph(defs));
     activityRef.current = deriveActivity(hapsRef.current, raw);
   }, [api]);
@@ -198,6 +201,12 @@ export function MixerModule({ api }: PanelProps) {
     });
   };
 
+  /** Badge row click: focus this clip everywhere (FX Rack, drum grid, …). */
+  const handleFxClick = (strip: Strip) => {
+    const def = (api.code.list(api.getCode()) ?? []).find((d) => d.name === strip.name);
+    api.emit('clip:selected', { clipId: strip.name, patternCode: def?.source ?? '' });
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -221,6 +230,7 @@ export function MixerModule({ api }: PanelProps) {
             <ChannelStrip
               key={strip.name}
               strip={strip}
+              badges={badges[strip.name] ?? []}
               soloed={solo.has(strip.name)}
               highlighted={highlighted === strip.name}
               disabled={frozen}
@@ -228,6 +238,7 @@ export function MixerModule({ api }: PanelProps) {
               onPan={handlePan}
               onMute={handleMute}
               onSolo={handleSolo}
+              onFxClick={handleFxClick}
               onCanvas={canvasSetRef.current.ref(strip.name)}
             />
           ))}

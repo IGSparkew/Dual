@@ -151,6 +151,16 @@
   cursor: not-allowed;
 }
 
+/* Target row (duck): victim-clip dropdown above the knobs. */
+.unitTargetRow {
+  display: flex;
+  padding: 8px 10px 0;
+}
+
+.unitTargetRow .unitSelect {
+  width: 100%;
+}
+
 .unitBody {
   display: flex;
   align-items: flex-start;

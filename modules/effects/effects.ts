@@ -4,8 +4,8 @@
  * The rack is a *derivation* of the clip's chained calls
  * (`const BASS = s("bd sd").lpf(800).room(0.4)`), never a separate state. It
  * only knows the simple units of its catalog; every other link (gain, fast,
- * advanced params like roomfade/lpenv/compressor…) is ignored and preserved
- * intact — the Code Editor owns those.
+ * advanced params like roomfade/lpenv/compressorAttack…) is ignored and
+ * preserved intact — the Code Editor owns those.
  *
  * All reads go through `chainCalls` (document-absolute spans); all writes are
  * pure code → code splices with offsets re-resolved from the current text on
@@ -67,13 +67,16 @@ export interface UnitDef {
 
 /**
  * Units in superdough's PROCESSING order (filters → vowel → coarse → crush →
- * distort → tremolo → phaser → delay → reverb) — the order the ear hears; the
- * textual order of `.method()` calls in the code has no audible effect.
+ * distort → tremolo → compressor → phaser → delay/reverb sends) — the order
+ * the ear hears; the textual order of `.method()` calls in the code has no
+ * audible effect. Duck sits last: it acts on the VICTIM orbit's output gain,
+ * after everything else.
  *
  * Deliberately excluded: gain/pan (mixer's facet), synthesis params (future
- * synth module), compressor* (v2/editor), djf (global per-orbit node),
- * shape/shapevol (deprecated — distort replaces them), ir/iresponse, and the
- * superdirt controls that are no-ops in superdough (squiz, triode, ring…).
+ * synth module), compressorAttack/compressorKnee (hand-edited, preserved like
+ * roomfade), djf (global per-orbit node), shape/shapevol (deprecated — distort
+ * replaces them), ir/iresponse, and the superdirt controls that are no-ops in
+ * superdough (squiz, triode, ring…).
  */
 export const EFFECT_CATALOG: readonly UnitDef[] = [
   {
@@ -146,6 +149,22 @@ export const EFFECT_CATALOG: readonly UnitDef[] = [
     ],
   },
   {
+    id: 'compressor',
+    name: 'Compressor',
+    // All three knobs are written on add so they match the code from the start
+    // (the DynamicsCompressorNode defaults differ from ours).
+    addAll: true,
+    params: [
+      // camelCase is EXACT — superdough has NO lowercase aliases here
+      // (`.compressorratio()` is a TypeError); the codegen must emit this
+      // exact case. compressorAttack/compressorKnee stay out of the catalog:
+      // hand-edited in the Code Editor, preserved like roomfade.
+      { method: 'compressor', aliases: [], label: 'Thresh', min: -60, max: 0, scale: 'lin', defaultValue: -20 },
+      { method: 'compressorRatio', aliases: [], label: 'Ratio', min: 1, max: 20, scale: 'lin', defaultValue: 4 },
+      { method: 'compressorRelease', aliases: [], label: 'Rel', min: 0.01, max: 1, scale: 'log', defaultValue: 0.05 },
+    ],
+  },
+  {
     id: 'phaser',
     name: 'Phaser',
     params: [
@@ -171,26 +190,48 @@ export const EFFECT_CATALOG: readonly UnitDef[] = [
       { method: 'roomsize', aliases: ['size', 'sz', 'rsize'], label: 'Size', min: 0.1, max: 10, scale: 'lin', defaultValue: 2 },
     ],
   },
+  {
+    id: 'duck',
+    name: 'Duck',
+    // Sidechain. The unit lives on the TRIGGER clip (e.g. the kick):
+    // `.duckorbit(n)` points at the VICTIM clip's orbit, whose output gain is
+    // ramped down on every trigger hap. Counter-intuitive superdough names:
+    // `duckonset` = time to reach the dip, `duckattack` = recovery time.
+    // Ducking is PER ORBIT — any clip sharing the victim's orbit ducks too.
+    target: { method: 'duckorbit', aliases: ['duck'] },
+    params: [
+      { method: 'duckdepth', aliases: [], label: 'Depth', min: 0, max: 1, scale: 'lin', defaultValue: 0.8 },
+      // Never write 0: an instant dip clicks audibly (documented upstream) —
+      // the knob floor stays strictly positive.
+      { method: 'duckonset', aliases: ['duckons'], label: 'Onset', min: 0.001, max: 0.3, scale: 'lin', defaultValue: 0.01 },
+      { method: 'duckattack', aliases: ['duckatt'], label: 'Attack', min: 0.002, max: 1, scale: 'log', defaultValue: 0.2 },
+    ],
+  },
 ];
 
 // ─── Method index (canonical + aliases → owning unit/param) ──────────────────
 
 interface MethodOwner {
   unit: UnitDef;
-  param: ParamDef | null; // null → the unit's enum facet
+  facet: 'param' | 'enum' | 'target';
+  param: ParamDef | null; // set only when `facet === 'param'`
 }
 
-/** methodName → owning unit/param, covering canonical names and aliases. */
+/** methodName → owning unit/facet, covering canonical names and aliases. */
 const METHOD_INDEX: ReadonlyMap<string, MethodOwner> = (() => {
   const index = new Map<string, MethodOwner>();
   for (const unit of EFFECT_CATALOG) {
     for (const param of unit.params) {
-      index.set(param.method, { unit, param });
-      for (const alias of param.aliases) index.set(alias, { unit, param });
+      index.set(param.method, { unit, facet: 'param', param });
+      for (const alias of param.aliases) index.set(alias, { unit, facet: 'param', param });
     }
     if (unit.enum) {
-      index.set(unit.enum.method, { unit, param: null });
-      for (const alias of unit.enum.aliases) index.set(alias, { unit, param: null });
+      index.set(unit.enum.method, { unit, facet: 'enum', param: null });
+      for (const alias of unit.enum.aliases) index.set(alias, { unit, facet: 'enum', param: null });
+    }
+    if (unit.target) {
+      index.set(unit.target.method, { unit, facet: 'target', param: null });
+      for (const alias of unit.target.aliases) index.set(alias, { unit, facet: 'target', param: null });
     }
   }
   return index;
@@ -199,6 +240,12 @@ const METHOD_INDEX: ReadonlyMap<string, MethodOwner> = (() => {
 /** Resolve any written method name (canonical or alias) to its owner. */
 export function ownerOf(method: string): MethodOwner | undefined {
   return METHOD_INDEX.get(method);
+}
+
+/** Canonical method name of an owner's facet. */
+function canonicalOf(owner: MethodOwner): string {
+  if (owner.param) return owner.param.method;
+  return owner.facet === 'enum' ? owner.unit.enum!.method : owner.unit.target!.method;
 }
 
 // ─── Model (derived view) ────────────────────────────────────────────────────
@@ -216,9 +263,14 @@ export interface RackUnit {
   params: RackParam[];
   /** Enum facet value (vowel), null when absent. */
   enumValue: string | null;
+  /** Target facet (duck): VICTIM clip name resolved from its `.orbit(n)`.
+   *  null when the facet is absent (pick a target to repair) or unresolvable
+   *  (then the unit is locked). */
+  targetClip: string | null;
   /** True when some argument is not a simple literal (pattern string, const
-   *  reference, ternary…) or a param is duplicated — knobs locked, the unit is
-   *  "managed in code" and only the Code Editor may touch it. */
+   *  reference, ternary…), a param is duplicated, or a duck target does not
+   *  resolve to any clip — knobs locked, the unit is "managed in code" and
+   *  only the Code Editor may touch it. */
   locked: boolean;
 }
 
@@ -260,6 +312,7 @@ export function deriveRack(api: PanelCodeApi, code: string, clip: string): Rack 
   interface Acc {
     values: Map<string, number>; // canonical param method → literal
     enumValue: string | null;
+    targetOrbit: number | null; // duck: the victim's orbit number
     locked: boolean;
     seen: Set<string>; // canonical methods already seen (duplicate detection)
   }
@@ -271,11 +324,11 @@ export function deriveRack(api: PanelCodeApi, code: string, clip: string): Rack 
 
     let acc = accs.get(owner.unit.id);
     if (!acc) {
-      acc = { values: new Map(), enumValue: null, locked: false, seen: new Set() };
+      acc = { values: new Map(), enumValue: null, targetOrbit: null, locked: false, seen: new Set() };
       accs.set(owner.unit.id, acc);
     }
 
-    const canonical = owner.param ? owner.param.method : owner.unit.enum!.method;
+    const canonical = canonicalOf(owner);
     if (acc.seen.has(canonical)) {
       acc.locked = true; // duplicated param — ambiguous, hands off
       continue;
@@ -286,10 +339,15 @@ export function deriveRack(api: PanelCodeApi, code: string, clip: string): Rack 
       const value = readNumArg(link.args);
       if (value === null) acc.locked = true;
       else acc.values.set(canonical, value);
-    } else {
+    } else if (owner.facet === 'enum') {
       const value = readStrArg(link.args);
       if (value === null || !owner.unit.enum!.choices.includes(value)) acc.locked = true;
       else acc.enumValue = value;
+    } else {
+      // Target facet (duckorbit): a plain orbit number, resolved to a clip below.
+      const value = readNumArg(link.args);
+      if (value === null) acc.locked = true;
+      else acc.targetOrbit = value;
     }
   }
 
@@ -298,11 +356,20 @@ export function deriveRack(api: PanelCodeApi, code: string, clip: string): Rack 
   for (const def of EFFECT_CATALOG) {
     const acc = accs.get(def.id);
     if (!acc) continue;
+    let locked = acc.locked;
+    let targetClip: string | null = null;
+    if (def.target && acc.targetOrbit !== null) {
+      // Resolve the victim: the clip whose `.orbit(n)` matches. No match →
+      // the target lives outside the rack's model, hands off.
+      targetClip = resolveOrbitClip(api, code, acc.targetOrbit);
+      if (targetClip === null) locked = true;
+    }
     units.push({
       def,
       params: def.params.map((p) => ({ def: p, value: acc.values.get(p.method) ?? null })),
       enumValue: acc.enumValue,
-      locked: acc.locked,
+      targetClip,
+      locked,
     });
   }
   return { clip, units };
@@ -314,7 +381,9 @@ export function absentUnits(rack: Rack): UnitDef[] {
   return EFFECT_CATALOG.filter((u) => !present.has(u.id));
 }
 
-/** Project a rack to the `fx:changed` payload shape. */
+/** Project a rack to the `fx:changed` payload shape. A duck target is
+ *  represented by the VICTIM clip's name (not its orbit number), keyed by the
+ *  canonical target method. */
 export function toFxChain(rack: Rack): FxChainEntry[] {
   return rack.units.map((unit) => {
     const params: Record<string, number | string> = {};
@@ -322,6 +391,9 @@ export function toFxChain(rack: Rack): FxChainEntry[] {
       if (p.value !== null) params[p.def.method] = p.value;
     }
     if (unit.enumValue !== null) params[unit.def.enum!.method] = unit.enumValue;
+    if (unit.def.target && unit.targetClip !== null) {
+      params[unit.def.target.method] = unit.targetClip;
+    }
     return { unit: unit.def.id, params };
   });
 }
@@ -348,7 +420,13 @@ export function deriveClipNames(api: PanelCodeApi, defs: Decl[]): string[] {
 export function formatParam(def: ParamDef, value: number): string {
   const clamped = Math.min(def.max, Math.max(def.min, value));
   if (def.integer) return String(Math.round(clamped));
-  return String(Math.round(clamped * 100) / 100);
+  const rounded = Math.round(clamped * 100) / 100;
+  // The 2-decimal rounding must never escape the range: a 0.001 floor rounds
+  // to 0, and e.g. duckonset at 0 clicks audibly (documented upstream) while
+  // distortvol at 0 silences the unit. Fall back to the exact bound.
+  if (rounded < def.min) return String(def.min);
+  if (rounded > def.max) return String(def.max);
+  return String(rounded);
 }
 
 /** Human-readable value readout for a knob. */
@@ -399,24 +477,29 @@ function findLink(api: PanelCodeApi, code: string, clip: string, canonical: stri
   for (const link of links) {
     const owner = METHOD_INDEX.get(link.method);
     if (!owner) continue;
-    const method = owner.param ? owner.param.method : owner.unit.enum!.method;
-    if (method === canonical) return link;
+    if (canonicalOf(owner) === canonical) return link;
   }
   return null;
 }
 
 /**
  * Add a unit to the clip: append its primary param at the default value
- * (`.lpf(800)`, `.vowel("a")`). Secondary params are provisioned lazily by
- * `setParam`, only when the user touches their knob — one call per parameter,
- * never the `"800:4"` form.
+ * (`.lpf(800)`, `.vowel("a")`) — or every param for `addAll` units
+ * (compressor). Other secondary params are provisioned lazily by `setParam`,
+ * only when the user touches their knob — one call per parameter, never the
+ * `"800:4"` form.
  */
 export function addEffect(api: PanelCodeApi, code: string, clip: string, unit: UnitDef): string {
+  // A target unit (duck) needs a victim clip — it is added via `setDuckTarget`.
+  if (unit.target) return code;
   if (unit.enum) {
     return appendCall(api, code, clip, `.${unit.enum.method}("${unit.enum.defaultValue}")`);
   }
-  const primary = unit.params[0];
-  return appendCall(api, code, clip, `.${primary.method}(${formatParam(primary, primary.defaultValue)})`);
+  const written = unit.addAll ? unit.params : unit.params.slice(0, 1);
+  const calls = written
+    .map((p) => `.${p.method}(${formatParam(p, p.defaultValue)})`)
+    .join('');
+  return appendCall(api, code, clip, calls);
 }
 
 /**
@@ -456,8 +539,11 @@ export function setEnum(
 
 /**
  * Remove a unit: splice out every chain link belonging to it (all its params,
- * canonical and aliases) — and nothing else. Links are removed right-to-left
- * so earlier spans stay valid within the single snapshot.
+ * canonical and aliases; for duck also its `duckorbit` target) — and nothing
+ * else. Removing a duck deliberately LEAVES the victim's `.orbit(n)`: it is
+ * harmless routing, and it keeps the victim's reverb/delay sends isolated.
+ * Links are removed right-to-left so earlier spans stay valid within the
+ * single snapshot.
  */
 export function removeEffect(api: PanelCodeApi, code: string, clip: string, unit: UnitDef): string {
   const links = api.chainCalls(code, clip);
@@ -470,4 +556,102 @@ export function removeEffect(api: PanelCodeApi, code: string, clip: string, unit
     next = api.spliceSpan(next, link.start, link.end, '');
   }
   return next;
+}
+
+// ─── Duck (sidechain — the only cross-clip unit) ─────────────────────────────
+
+/** Orbits taken by a literal `.orbit(n)` on any clip of the document.
+ *  Non-literal orbit args are unreadable and skipped — a collision with one of
+ *  them is possible but the document owns that choice. */
+function usedOrbits(api: PanelCodeApi, code: string): Set<number> {
+  const used = new Set<number>();
+  for (const def of api.list(code) ?? []) {
+    if (def.declKind !== 'const' || def.initKind !== 'pattern') continue;
+    for (const link of api.chainCalls(code, def.name) ?? []) {
+      if (link.method !== 'orbit') continue;
+      const n = readNumArg(link.args);
+      if (n !== null) used.add(n);
+    }
+  }
+  return used;
+}
+
+/** First clip whose chain carries a literal `.orbit(n)` matching `orbit`.
+ *  Ducking is per orbit, so clips sharing that orbit are ducked too — the
+ *  first one stands for them in the UI. */
+function resolveOrbitClip(api: PanelCodeApi, code: string, orbit: number): string | null {
+  for (const def of api.list(code) ?? []) {
+    if (def.declKind !== 'const' || def.initKind !== 'pattern') continue;
+    for (const link of api.chainCalls(code, def.name) ?? []) {
+      if (link.method !== 'orbit') continue;
+      if (readNumArg(link.args) === orbit) return def.name;
+    }
+  }
+  return null;
+}
+
+/**
+ * The victim's orbit: read its existing literal `.orbit(n)`, else allocate the
+ * smallest free n ≥ 2 (every clip plays on the implicit orbit 1 by default —
+ * ducking orbit 1 would duck everyone, trigger included) and append
+ * `.orbit(n)` to the victim's initializer. null when the orbit is non-literal
+ * (hands off) or the victim vanished.
+ */
+function ensureOrbit(
+  api: PanelCodeApi,
+  code: string,
+  victim: string,
+): { code: string; orbit: number } | null {
+  for (const link of api.chainCalls(code, victim) ?? []) {
+    if (link.method !== 'orbit') continue;
+    const n = readNumArg(link.args);
+    return n === null ? null : { code, orbit: n };
+  }
+  const used = usedOrbits(api, code);
+  let orbit = 2;
+  while (used.has(orbit)) orbit++;
+  const next = appendCall(api, code, victim, `.orbit(${orbit})`);
+  return next === code ? null : { code: next, orbit };
+}
+
+/**
+ * Point the trigger's duck at `victim` — the duck unit's add AND retarget.
+ * Touches up to two declarations in one pure transform: (a) the victim gets an
+ * `.orbit(n)` if it has none (offsets re-resolved before the trigger splice);
+ * (b) the trigger gets its `duckorbit` argument spliced in place, or the full
+ * duck set appended on first add.
+ *
+ * Playback gotcha (harmless, worth knowing): if the trigger fires before the
+ * victim has ever played, superdough logs "duck target orbit n does not
+ * exist" and self-heals as soon as the victim plays.
+ */
+export function setDuckTarget(
+  api: PanelCodeApi,
+  code: string,
+  trigger: string,
+  unit: UnitDef,
+  victim: string,
+): string {
+  if (!unit.target || trigger === victim) return code;
+  // Guard BEFORE touching the victim: if the trigger vanished (hand edit
+  // between derivation and this write), provisioning the victim's orbit first
+  // would leave an orphan `.orbit(n)` behind with no rollback.
+  if (api.chainCalls(code, trigger) === null) return code;
+  const ensured = ensureOrbit(api, code, victim);
+  if (!ensured) return code;
+  const link = findLink(api, ensured.code, trigger, unit.target.method);
+  if (link && link.args.length === 1) {
+    return api.spliceSpan(
+      ensured.code,
+      link.args[0].start,
+      link.args[0].end,
+      String(ensured.orbit),
+    );
+  }
+  // First add: provision the whole set —
+  // `.duckorbit(n).duckdepth(0.8).duckonset(0.01).duckattack(0.2)`.
+  const knobs = unit.params
+    .map((p) => `.${p.method}(${formatParam(p, p.defaultValue)})`)
+    .join('');
+  return appendCall(api, ensured.code, trigger, `.${unit.target.method}(${ensured.orbit})${knobs}`);
 }

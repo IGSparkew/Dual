@@ -7,6 +7,7 @@ import {
   deriveClipNames,
   deriveRack,
   removeEffect,
+  setDuckTarget,
   setEnum,
   setParam,
   toFxChain,
@@ -42,6 +43,9 @@ export function EffectsModule({ api }: PanelProps) {
     const code = api.getCode();
     const defs = api.code.list(code);
     if (defs === null) return; // parse error — keep the current view
+    // Unlike the mixer, the rack does NOT freeze on an invalid dependency
+    // graph (validateGraph): every FX splice is local to one clip's initializer
+    // and stays safe even when a dead-ref/cycle exists elsewhere. Deliberate.
     const names = deriveClipNames(api.code, defs);
     setClips(names);
 
@@ -75,6 +79,9 @@ export function EffectsModule({ api }: PanelProps) {
   const apply = (next: string) => {
     const name = activeRef.current;
     if (!name) return;
+    // A no-op mutation (locked unit, vanished clip, invalid choice) must not
+    // trigger a full audio re-evaluation.
+    if (next === api.getCode()) return;
     api.code.write(next);
     refresh();
     const after = deriveRack(api.code, api.getCode(), name);
@@ -84,7 +91,22 @@ export function EffectsModule({ api }: PanelProps) {
   const handleAdd = (unit: UnitDef) => {
     const name = activeRef.current;
     if (!name) return;
+    if (unit.target) {
+      // Duck needs a victim: default to the first other clip (the dropdown on
+      // the card retargets afterwards). The menu entry is disabled when the
+      // document has a single clip, so a victim always exists here.
+      const victim = clips.find((c) => c !== name);
+      if (!victim) return;
+      apply(setDuckTarget(api.code, api.getCode(), name, unit, victim));
+      return;
+    }
     apply(addEffect(api.code, api.getCode(), name, unit));
+  };
+
+  const handleTarget = (unit: UnitDef, victim: string) => {
+    const name = activeRef.current;
+    if (!name || !victim) return;
+    apply(setDuckTarget(api.code, api.getCode(), name, unit, victim));
   };
 
   const handleParam = (unit: UnitDef, method: string, value: number) => {
@@ -148,7 +170,12 @@ export function EffectsModule({ api }: PanelProps) {
               Ajouter un effet…
             </option>
             {addable.map((unit) => (
-              <option key={unit.id} value={unit.id}>
+              // A target unit (duck) needs a victim — no other clip, no duck.
+              <option
+                key={unit.id}
+                value={unit.id}
+                disabled={unit.target !== undefined && clips.length < 2}
+              >
                 {unit.name}
               </option>
             ))}
@@ -167,8 +194,10 @@ export function EffectsModule({ api }: PanelProps) {
               key={unit.def.id}
               unit={unit}
               disabled={false}
+              targetChoices={clips.filter((c) => c !== active)}
               onParam={handleParam}
               onEnum={handleEnum}
+              onTarget={handleTarget}
               onRemove={handleRemove}
             />
           ))}

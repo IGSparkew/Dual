@@ -55,4 +55,14 @@ describe('fxBadges', () => {
     const code = 'const G = stack(A, B).room(0.5).gain(0.9)';
     expect(fxBadges(api, code, 'G')).toEqual(['room']);
   });
+
+  it('badges compressor and the trigger-side duckorbit', () => {
+    const code = 'const KICK = s("bd").compressor(-20).duckorbit(2).duckdepth(0.8)';
+    expect(fxBadges(api, code, 'KICK')).toEqual(['compressor', 'duckorbit', 'duckdepth']);
+  });
+
+  it('never badges the victim `.orbit(n)` — plain routing, not an FX', () => {
+    const code = 'const BASS = s("saw").orbit(2).room(0.4)';
+    expect(fxBadges(api, code, 'BASS')).toEqual(['room']);
+  });
 });

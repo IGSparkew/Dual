@@ -55,6 +55,21 @@ export function isClipInit(api: PanelCodeApi, source: string): boolean {
   return q !== null && q.isCall();
 }
 
+/** Initial clip content per editor type — what the "new clip" form creates.
+ *  Both land inside the matching grid's mini-notation subset (8 steps). */
+export const CLIP_TEMPLATES = {
+  drum: 's("bd ~ ~ ~ bd ~ ~ ~")',
+  piano: 'note("~ ~ ~ ~ ~ ~ ~ ~")',
+} as const;
+
+export type ClipType = keyof typeof CLIP_TEMPLATES;
+
+/** A clip name must be a plain JS identifier — it becomes a `const`. Keywords
+ *  are caught downstream by the parse check on the prospective document. */
+export function isValidClipName(name: string): boolean {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name);
+}
+
 /** Generate a unique, valid JS identifier not colliding with any taken name or
  *  its derived gate/gain consts. */
 export function uniqueName(taken: string[], base = 'clip'): string {

@@ -13,7 +13,15 @@
         "ratio": 0.5,
         "children": [
           { "type": "panel", "panelId": "editor" },
-          { "type": "panel", "panelId": "drum-grid" }
+          {
+            "type": "split",
+            "axis": "y",
+            "ratio": 0.5,
+            "children": [
+              { "type": "panel", "panelId": "drum-grid" },
+              { "type": "panel", "panelId": "piano-roll" }
+            ]
+          }
         ]
       },
       { "type": "panel", "panelId": "transport" }

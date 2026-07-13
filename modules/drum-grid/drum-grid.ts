@@ -21,6 +21,7 @@
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 import type { Decl } from '@core/interpreter/CodeRegion';
 import { miniOf, tokenize } from '@modules/shared/mini-notation';
+import { readCycles } from '@modules/shared/loop-length';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,12 @@ export interface DrumGrid {
   rows: DrumRow[];
   stepCount: number;
   form: GridForm;
+  /** Loop length in cycles, read from the clip's chained `.slow(n)` — 1 when
+   *  absent (and when the field is omitted, e.g. bare test fixtures). null =
+   *  an unmanaged `.slow` (non-literal, decimal, duplicated): the « Mesures »
+   *  select is disabled and `writeCycles` keeps hands off. Same optional-field
+   *  precedent as the piano roll's `chain`. */
+  cycles?: number | null;
 }
 
 /** A clip as the drum grid sees it; `grid` is null when the content is beyond
@@ -290,6 +297,7 @@ export function deriveGrid(api: PanelCodeApi, code: string, name: string): DrumG
     rows: lines.flatMap(lineToRows),
     stepCount,
     form: args.length > 1 ? 'split' : 'merged',
+    cycles: readCycles(api, code, name),
   };
 }
 

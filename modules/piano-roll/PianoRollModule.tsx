@@ -15,6 +15,7 @@ import {
   type RollClip,
   type RollNote,
 } from './piano-roll';
+import { loopPhase, rescaleStepCount, writeCycles } from '@modules/shared/loop-length';
 import { PianoRollToolbar } from './components/PianoRollToolbar';
 import { drawRoll, ROLL_HEIGHT, ROW_HEIGHT } from './components/piano-roll-renderer';
 import { cellAt, hitTest, type RollHit } from './components/note-interaction';
@@ -115,9 +116,11 @@ export function PianoRollModule({ api }: PanelProps) {
         const canvas = canvasRef.current;
         const view = viewRef.current;
         if (!canvas || !view.roll) return;
-        // 4 beats = 1 cycle — same convention as the drum grid.
+        // A loop of n measures (`.slow(n)`) spans n cycles; an unmanaged
+        // `.slow` (cycles null) falls back to a single-cycle sweep.
         const { status, position } = api.getTransport();
-        const playhead = status === 'playing' ? ((position / 4) % 1 + 1) % 1 : null;
+        const cycles = view.roll.cycles ?? 1;
+        const playhead = status === 'playing' ? loopPhase(position, cycles) : null;
         const surface = api.canvas.surface(canvas);
         if (surface) {
           drawRoll(surface, {
@@ -138,6 +141,33 @@ export function PianoRollModule({ api }: PanelProps) {
     if (!name) return;
     setRoll(next); // optimistic — refresh re-derives from the document
     api.code.write(writeRoll(api.code, api.getCode(), name, next));
+  };
+
+  // « Pas » is steps per measure — the document holds the total step count.
+  const handleStepCount = (perMeasure: number) => {
+    if (!roll) return;
+    applyRoll(setStepCount(roll, Math.round(perMeasure * (roll.cycles ?? 1))));
+  };
+
+  // « Mesures »: keep the per-step duration constant — when the total divides
+  // evenly by the old cycle count, extend (notes preserved, silence appended)
+  // or crop the content to `perMeasure × m` steps; otherwise only the `.slow`
+  // factor changes. Both the content splice and the `.slow` splice land in
+  // ONE write (each helper re-resolves its offsets from the text it receives).
+  // The appended `.slow(m)` sits at the end of the chain, so it also stretches
+  // the patterned arguments of FX chained before it (e.g. `.lpf("400 800")`)
+  // — intended: the whole clip loops over m measures.
+  const handleCycles = (m: number) => {
+    const name = activeRef.current;
+    if (!name || !roll || roll.cycles === null) return; // unmanaged `.slow` — hands off
+    const c = roll.cycles ?? 1;
+    if (m === c) return;
+    const total = rescaleStepCount(roll.stepCount, c, m);
+    const next: PianoRoll = { ...setStepCount(roll, total), cycles: m };
+    setRoll(next); // optimistic — refresh re-derives from the document
+    let text = writeRoll(api.code, api.getCode(), name, next);
+    text = writeCycles(api.code, text, name, m);
+    api.code.write(text);
   };
 
   const emitNote = (type: 'note:created' | 'note:deleted', note: RollNote, total: number) => {
@@ -230,7 +260,8 @@ export function PianoRollModule({ api }: PanelProps) {
           setActiveClip(name);
           refresh();
         }}
-        onStepCount={(n) => roll && applyRoll(setStepCount(roll, n))}
+        onStepCount={handleStepCount}
+        onCycles={handleCycles}
       />
 
       {clips.length === 0 && (

@@ -1,6 +1,7 @@
 /* ── Layout ─────────────────────────────────────────────────── */
 
 .panel {
+  position: relative; /* anchors the new-clip dialog overlay */
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -437,4 +438,78 @@
 .infoBanner code {
   font-family: var(--font-mono, monospace);
   color: var(--accent);
+}
+
+/* ── New clip dialog ─────────────────────────────────────────── */
+
+.dialogOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-primary) 60%, transparent);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 250px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.dialogTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dialogLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.dialogInput {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+  padding: 4px 6px;
+}
+
+.dialogInput:focus {
+  border-color: var(--accent);
+}
+
+.dialogTypes {
+  display: flex;
+  gap: 6px;
+}
+
+.dialogTypes > button {
+  flex: 1;
+  justify-content: center;
+}
+
+.dialogError {
+  font-size: 10px;
+  color: var(--error, #e5484d);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
 }

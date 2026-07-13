@@ -1,0 +1,10 @@
+{
+  "id": "piano-roll",
+  "name": "Piano Roll",
+  "version": "1.0.0",
+  "icon": "Piano",
+  "description": "MIDI-style note editor over note(\"...\") mini-notation",
+  "defaultSlot": "center-top",
+  "minSize": { "width": 480, "height": 240 },
+  "capabilities": ["code:read", "code:write", "state:read"]
+}

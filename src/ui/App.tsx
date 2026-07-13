@@ -12,6 +12,7 @@ import '@modules/transport/index';
 import '@modules/editor/index';
 import '@modules/session/index';
 import '@modules/drum-grid/index';
+import '@modules/piano-roll/index';
 import '@modules/mixer/index';
 import '@modules/effects/index';
 import '@modules/arrangement/index';

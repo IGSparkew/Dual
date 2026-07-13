@@ -4,6 +4,7 @@ import { useStore } from '@core/state/store';
 import type { Decl, GraphError } from '@core/interpreter/CodeRegion';
 import { SessionToolbar } from './components/SessionToolBar';
 import { SessionGrid } from './components/SessionGrid';
+import { NewClipDialog } from './components/NewClipDialog';
 import {
   buildGroup,
   buildLeaf,
@@ -11,13 +12,17 @@ import {
   deriveClips,
   dollarRefs,
   expandGroup,
+  gainName,
   gateName,
+  isValidClipName,
   provisionGate,
   removeClip,
   reprojectDollar,
   toArrangement,
   toSession,
   uniqueName,
+  CLIP_TEMPLATES,
+  type ClipType,
   type RawClip,
 } from './session';
 import styles from './SessionModule.module.css';
@@ -147,13 +152,31 @@ export function SessionModule({ api }: PanelProps) {
     apply(api.code.setInit(code, gateName(focused), clip.isMuted ? '1' : '0'));
   };
 
-  // ─── Create clip ────────────────────────────────────────────────────────────
+  // ─── Create clip (name + type via the dialog) ───────────────────────────────
 
-  const handleAddClip = () => {
-    if (frozen) return;
+  const [newClipOpen, setNewClipOpen] = useState(false);
+
+  /** Returns an error message for the dialog, or null when the clip is in. */
+  const handleCreateClip = (name: string, type: ClipType): string | null => {
     const code = api.getCode();
-    const name = uniqueName(clips.map((c) => c.name));
-    apply(api.code.insertDecl(code, buildLeaf(name, 's("bd")')));
+    if (!isValidClipName(name)) {
+      return 'Nom invalide — lettres, chiffres et _ uniquement (pas d’espace).';
+    }
+    const taken = new Set((api.code.list(code) ?? []).map((d) => d.name));
+    if (taken.has(name) || taken.has(gateName(name)) || taken.has(gainName(name))) {
+      return `« ${name} » existe déjà.`;
+    }
+    const next = api.code.insertDecl(code, buildLeaf(name, CLIP_TEMPLATES[type]));
+    if (api.code.list(next) === null) {
+      // The identifier passed the regex but breaks the parse (JS keyword…).
+      return `« ${name} » n'est pas utilisable comme nom (mot réservé ?).`;
+    }
+    setNewClipOpen(false);
+    apply(next);
+    setSelection([name]);
+    setFocused(name);
+    api.emit('clip:selected', { clipId: name, patternCode: CLIP_TEMPLATES[type] });
+    return null;
   };
 
   // ─── Group / ungroup ────────────────────────────────────────────────────────
@@ -271,7 +294,7 @@ export function SessionModule({ api }: PanelProps) {
       <SessionToolbar
         outputMode={outputMode}
         onToggleMode={handleToggleMode}
-        onAddClip={handleAddClip}
+        onAddClip={() => setNewClipOpen(true)}
         onGroup={handleGroup}
         onUngroup={handleUngroup}
         onToggleMute={handleToggleMute}
@@ -310,6 +333,14 @@ export function SessionModule({ api }: PanelProps) {
         onLaunch={handleLaunch}
         onRename={handleRename}
       />
+
+      {newClipOpen && (
+        <NewClipDialog
+          defaultName={uniqueName(clips.map((c) => c.name))}
+          onConfirm={handleCreateClip}
+          onCancel={() => setNewClipOpen(false)}
+        />
+      )}
     </div>
   );
 }

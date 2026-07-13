@@ -3,8 +3,9 @@
  *
  * The roll edits the *content* of a named clip (the arguments of its root
  * `stack(...)` call), never the gain/fx chain or the rest of the document.
- * Every argument must be a bare `note("...")` within a deliberate subset of
- * mini-notation:
+ * Every argument must be a `note("...")` — optionally followed by a method
+ * chain (`.sound("piano")`…) shared verbatim by every voice, preserved on
+ * write — within a deliberate subset of mini-notation:
  *
  *   - rests: `~` (and `~@n` on parse, n integer)
  *   - notes: `c3`, `cs3@2` — `@n` is the relative duration weight (integer ≥ 1)
@@ -20,7 +21,7 @@
 import { noteToMidi } from '@strudel/core/util.mjs';
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 import type { Decl } from '@core/interpreter/CodeRegion';
-import { miniOf, tokenize } from '@modules/shared/mini-notation';
+import { miniOf, splitChain, tokenize } from '@modules/shared/mini-notation';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,10 @@ export interface PianoRoll {
   notes: RollNote[];
   /** Total duration weight of one voice — shared by every voice of the stack. */
   stepCount: number;
+  /** Method chain carried by every voice (`.sound("piano")`), `''` when bare.
+   *  Voices with differing chains mark the clip complex — a rewrite reallocates
+   *  the voices, so a per-voice chain could not survive it. */
+  chain?: string;
 }
 
 /** A clip as the piano roll sees it; `roll` is null when the content is beyond
@@ -135,17 +140,27 @@ function parseLine(mini: string): PianoRoll | null {
 // ─── Clip content (code → model) ─────────────────────────────────────────────
 
 /**
- * Derive the roll from a clip's stack arguments. Every argument must be a bare
- * `note("...")` within the subset, all with the same step count.
+ * Derive the roll from a clip's stack arguments. Every argument must be a
+ * `note("...")` within the subset — optionally chained (`.sound("piano")`…),
+ * the chain being identical on every voice — all with the same step count.
  */
 export function deriveRoll(api: PanelCodeApi, code: string, name: string): PianoRoll | null {
   const args = api.callArgs(code, name);
   if (!args || args.length === 0) return null;
 
   const voices: PianoRoll[] = [];
+  let chain: string | null = null;
   for (const arg of args) {
     if (arg.isIdentifier) return null; // group of named clips — not note content
-    const mini = miniOf(api, arg.source, 'note');
+    // The whole argument must parse as a call rooted at `note` — this rejects
+    // e.g. `note("c3") + x`, which splitChain alone would let through.
+    const q = api.readExpr(arg.source);
+    if (!q || !q.isCall() || q.callee() !== 'note') return null;
+    const split = splitChain(arg.source);
+    if (split === null) return null;
+    if (chain === null) chain = split.chain;
+    else if (chain !== split.chain) return null; // per-voice chains — complex
+    const mini = miniOf(api, split.base, 'note');
     if (mini === null) return null;
     const voice = parseLine(mini);
     if (voice === null) return null;
@@ -155,7 +170,7 @@ export function deriveRoll(api: PanelCodeApi, code: string, name: string): Piano
   const stepCount = voices[0].stepCount;
   if (voices.some((v) => v.stepCount !== stepCount)) return null;
 
-  return { notes: voices.flatMap((v) => v.notes), stepCount };
+  return { notes: voices.flatMap((v) => v.notes), stepCount, chain: chain ?? '' };
 }
 
 /** The clips the piano roll can list: session-convention `const … = stack(…)`. */
@@ -225,13 +240,17 @@ function voiceMini(groups: ChordGroup[], stepCount: number): string {
   return tokens.join(' ');
 }
 
-/** The stack arguments for the roll — one `note("...")` per allocated voice. */
+/** The stack arguments for the roll — one `note("...")` per allocated voice,
+ *  each carrying the shared chain back verbatim. */
 export function serializeRoll(roll: PianoRoll): string {
+  const chain = roll.chain ?? '';
   const voices = allocateVoices(groupChords(roll.notes));
   if (voices.length === 0) {
-    return `note("${new Array(roll.stepCount).fill('~').join(' ')}")`;
+    return `note("${new Array(roll.stepCount).fill('~').join(' ')}")${chain}`;
   }
-  return voices.map((voice) => `note("${voiceMini(voice, roll.stepCount)}")`).join(', ');
+  return voices
+    .map((voice) => `note("${voiceMini(voice, roll.stepCount)}")${chain}`)
+    .join(', ');
 }
 
 /** Splice the new content over the clip's stack arguments (chain preserved). */
@@ -314,5 +333,5 @@ export function setStepCount(roll: PianoRoll, stepCount: number): PianoRoll {
   const notes = roll.notes
     .filter((n) => n.step < stepCount)
     .map((n) => (n.step + n.span > stepCount ? { ...n, span: stepCount - n.step } : n));
-  return { notes, stepCount };
+  return { ...roll, notes, stepCount };
 }

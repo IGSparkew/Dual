@@ -186,11 +186,6 @@ describe('deriveRoll (off-subset → null)', () => {
     expect(deriveVoices('c3(3,8)')).toBeNull();
   });
 
-  it('rejects a chained argument (not a bare note call)', () => {
-    const code = 'const clip = stack(note("c3").fast(2));';
-    expect(deriveRoll(api, code, 'clip')).toBeNull();
-  });
-
   it('rejects a non-note constructor (drum clip `s("bd sd")`)', () => {
     const code = 'const clip = stack(s("bd sd"));';
     expect(deriveRoll(api, code, 'clip')).toBeNull();
@@ -208,6 +203,54 @@ describe('deriveRoll (off-subset → null)', () => {
 
   it('returns null when the declaration is absent', () => {
     expect(deriveRoll(api, 'const other = stack(note("c3"));', 'clip')).toBeNull();
+  });
+});
+
+// ─── deriveRoll — chained voices ─────────────────────────────────────────────
+
+describe('deriveRoll (chained voices)', () => {
+  it('accepts a chain behind note() and records it', () => {
+    const code = 'const clip = stack(note("c3 e3").sound("piano"));';
+    const roll = deriveRoll(api, code, 'clip');
+    expect(roll).not.toBeNull();
+    expect(roll!.stepCount).toBe(2);
+    expect(roll!.chain).toBe('.sound("piano")');
+  });
+
+  it('reports an empty chain for bare voices', () => {
+    expect(deriveVoices('c3 e3')!.chain).toBe('');
+  });
+
+  it('accepts several voices sharing the same chain (with a clip-level chain)', () => {
+    const code =
+      'const clip1 = stack(note("[c4,f4,gs4]@4 [cs4,e4,g4]@4").sound("piano"), ' +
+      'note("~ c5 cs5 ~ c5 ~ c5 ~").sound("piano")).gain(CLIP1_ON ? CLIP1_GAIN : 0);';
+    const roll = deriveRoll(api, code, 'clip1');
+    expect(roll).not.toBeNull();
+    expect(roll!.stepCount).toBe(8);
+    expect(roll!.chain).toBe('.sound("piano")');
+    expect(roll!.notes).toHaveLength(10); // two 3-note chords + four c5/cs5 hits
+  });
+
+  it('accepts a multi-link chain', () => {
+    const code = 'const clip = stack(note("c3").sound("piano").fast(2));';
+    expect(deriveRoll(api, code, 'clip')!.chain).toBe('.sound("piano").fast(2)');
+  });
+
+  it('rejects voices with differing chains', () => {
+    const code =
+      'const clip = stack(note("c3 e3").sound("piano"), note("g3 ~").sound("epiano"));';
+    expect(deriveRoll(api, code, 'clip')).toBeNull();
+  });
+
+  it('rejects a chained voice next to a bare one', () => {
+    const code = 'const clip = stack(note("c3 e3").sound("piano"), note("g3 ~"));';
+    expect(deriveRoll(api, code, 'clip')).toBeNull();
+  });
+
+  it('rejects a trailing expression that is not a method chain', () => {
+    const code = 'const clip = stack(note("c3") + x);';
+    expect(deriveRoll(api, code, 'clip')).toBeNull();
   });
 });
 
@@ -278,6 +321,23 @@ describe('serializeRoll', () => {
 
   it('serializes an empty roll as all rests', () => {
     expect(serializeRoll({ notes: [], stepCount: 4 })).toBe('note("~ ~ ~ ~")');
+  });
+
+  it('re-emits the shared chain on every voice', () => {
+    const roll: PianoRoll = {
+      notes: [
+        { midi: 48, step: 0, span: 2 },
+        { midi: 50, step: 1, span: 2 },
+      ],
+      stepCount: 4,
+      chain: '.sound("piano")',
+    };
+    expect(serializeRoll(roll)).toBe(
+      'note("c3@2 ~ ~").sound("piano"), note("~ d3@2 ~").sound("piano")',
+    );
+    expect(serializeRoll({ notes: [], stepCount: 2, chain: '.sound("piano")' })).toBe(
+      'note("~ ~").sound("piano")',
+    );
   });
 });
 
@@ -538,5 +598,15 @@ describe('writeRoll', () => {
     const code = 'const other = stack(note("c3"));';
     const roll: PianoRoll = { notes: [{ midi: 48, step: 0, span: 1 }], stepCount: 1 };
     expect(writeRoll(api, code, 'clip', roll)).toBe(code);
+  });
+
+  it('round-trips a chained clip: edit preserved, chain and gate intact', () => {
+    const code =
+      'const clip1 = stack(note("c4 ~").sound("piano")).gain(CLIP1_ON ? CLIP1_GAIN : 0);';
+    const roll = deriveRoll(api, code, 'clip1')!;
+    const next = writeRoll(api, code, 'clip1', addNote(roll, 72, 1, 1));
+    expect(next).toBe(
+      'const clip1 = stack(note("c4 c5").sound("piano")).gain(CLIP1_ON ? CLIP1_GAIN : 0);',
+    );
   });
 });

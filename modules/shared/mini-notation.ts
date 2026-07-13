@@ -12,21 +12,39 @@
  */
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 
-/** True when `source` is a single bare call — no `.chain()` after the closing
- *  paren. Textual scan; balanced parens inside the mini string are fine. */
-export function isBareCall(source: string): boolean {
+/** Split a call expression into its base call and trailing chain text —
+ *  `note("c3").sound("piano")` → base `note("c3")`, chain `.sound("piano")`.
+ *  Quote-aware paren scan (a `(` inside the mini string cannot unbalance it);
+ *  null when no complete base call is found. Purely textual: the caller
+ *  validates the whole expression with `readExpr` when the chain matters. */
+export function splitChain(source: string): { base: string; chain: string } | null {
   const s = source.trim();
   const open = s.indexOf('(');
-  if (open < 0) return false;
+  if (open < 0) return null;
   let depth = 0;
+  let quote: string | null = null;
   for (let i = open; i < s.length; i++) {
-    if (s[i] === '(') depth++;
-    else if (s[i] === ')') {
+    const ch = s[i];
+    if (quote !== null) {
+      if (ch === '\\') i++;
+      else if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch;
+    } else if (ch === '(') {
+      depth++;
+    } else if (ch === ')') {
       depth--;
-      if (depth === 0) return i === s.length - 1;
+      if (depth === 0) return { base: s.slice(0, i + 1), chain: s.slice(i + 1).trim() };
     }
   }
-  return false;
+  return null;
+}
+
+/** True when `source` is a single bare call — no `.chain()` after the closing
+ *  paren. */
+export function isBareCall(source: string): boolean {
+  const split = splitChain(source);
+  return split !== null && split.chain === '';
 }
 
 /** The mini string of a bare `<callee>("...")` expression — `miniOf(api, src,

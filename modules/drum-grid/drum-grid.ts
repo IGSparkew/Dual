@@ -20,6 +20,7 @@
  */
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 import type { Decl } from '@core/interpreter/CodeRegion';
+import { miniOf, tokenize } from '@modules/shared/mini-notation';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -193,29 +194,6 @@ export function isSampleName(name: string): boolean {
   return NAME_RE.test(name);
 }
 
-/** Split a mini string into top-level tokens (bracket groups stay intact). */
-function tokenize(mini: string): string[] | null {
-  const tokens: string[] = [];
-  let depth = 0;
-  let current = '';
-  for (const ch of mini.trim()) {
-    if (ch === '[') depth++;
-    else if (ch === ']') {
-      depth--;
-      if (depth < 0) return null;
-    }
-    if (/\s/.test(ch) && depth === 0) {
-      if (current) tokens.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  if (depth !== 0) return null;
-  if (current) tokens.push(current);
-  return tokens;
-}
-
 /** Parse one step token into its hits. `[]` = rest; null = beyond the subset. */
 function parseStep(token: string): Hit[] | null {
   if (token === '~' || token === '-') return [];
@@ -286,34 +264,6 @@ function lineToRows(steps: Hit[][]): DrumRow[] {
 
 // ─── Clip content (code → model) ─────────────────────────────────────────────
 
-/** True when `source` is a single bare call — no `.chain()` after the closing
- *  paren. Textual scan; balanced parens inside the mini string are fine. */
-function isBareCall(source: string): boolean {
-  const s = source.trim();
-  const open = s.indexOf('(');
-  if (open < 0) return false;
-  let depth = 0;
-  for (let i = open; i < s.length; i++) {
-    if (s[i] === '(') depth++;
-    else if (s[i] === ')') {
-      depth--;
-      if (depth === 0) return i === s.length - 1;
-    }
-  }
-  return false;
-}
-
-/** The mini string of a bare `s("...")` expression, null for anything else. */
-function miniOf(api: PanelCodeApi, source: string): string | null {
-  if (!isBareCall(source)) return null;
-  const q = api.readExpr(source);
-  if (!q || !q.isCall() || q.callee() !== 's') return null;
-  const args = q.args();
-  if (args.length !== 1) return null;
-  const literal = args[0].source.match(/^(['"`])([\s\S]*)\1$/);
-  return literal ? literal[2] : null;
-}
-
 /**
  * Derive the grid from a clip's stack arguments. Every argument must be a bare
  * `s("...")` within the subset, all with the same step count (polyrhythm steps
@@ -326,7 +276,7 @@ export function deriveGrid(api: PanelCodeApi, code: string, name: string): DrumG
   const lines: Hit[][][] = [];
   for (const arg of args) {
     if (arg.isIdentifier) return null; // group of named clips — not a drum pattern
-    const mini = miniOf(api, arg.source);
+    const mini = miniOf(api, arg.source, 's');
     if (mini === null) return null;
     const steps = parseLine(mini);
     if (steps === null) return null;

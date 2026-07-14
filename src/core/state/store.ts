@@ -25,6 +25,10 @@ export interface AppState {
   /** Last known `arrange(...)` source — dormant memory across a mode round-trip
    *  (the `$:` block is trivially regenerable from the grid, the arrange is not). */
   arrangementCode: string;
+  /** Absolute path of the loaded `.strudel` project file, or null when unsaved. */
+  currentProjectPath: string | null;
+  projectName: string;
+  isDirty: boolean;
 
   setTransport: (state: Partial<TransportState>) => void;
   setActiveCode: (code: string) => void;
@@ -34,6 +38,9 @@ export interface AppState {
   removeNotification: (id: string) => void;
   setOutputMode: (mode: OutputMode) => void;
   setArrangementCode: (code: string) => void;
+  setCurrentProjectPath: (path: string | null) => void;
+  setProjectName: (name: string) => void;
+  setDirty: (dirty: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -45,6 +52,9 @@ export const useStore = create<AppState>((set) => ({
   notifications: [],
   outputMode: 'session',
   arrangementCode: '',
+  currentProjectPath: null,
+  projectName: 'Untitled',
+  isDirty: false,
 
   setTransport: (partial) =>
     set((s) => ({ transport: { ...s.transport, ...partial } })),
@@ -62,4 +72,7 @@ export const useStore = create<AppState>((set) => ({
     set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
   setOutputMode: (mode) => set({ outputMode: mode }),
   setArrangementCode: (code) => set({ arrangementCode: code }),
+  setCurrentProjectPath: (path) => set({ currentProjectPath: path }),
+  setProjectName: (name) => set({ projectName: name }),
+  setDirty: (dirty) => set({ isDirty: dirty }),
 }));

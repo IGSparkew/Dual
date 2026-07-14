@@ -1,8 +1,28 @@
-import { app, ipcMain } from 'electron';
+import { app, dialog, ipcMain } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getCoreRoot, getPortableRoot, getUserDataRoot } from './paths';
 import { USER_DIRS, type UserDir } from './userdata';
+import { getLastProjectPath, setLastProjectPath } from './appState';
+import { gitCommit, gitPush } from './git';
+
+interface ProjectFile {
+  path: string;
+  name: string;
+  code: string;
+}
+
+// Renderer reports its own dirty state via `dual:set-dirty`; main reads it back
+// on window close to decide whether to intercept the close.
+let isDirty = false;
+
+export function getDirtyState(): boolean {
+  return isDirty;
+}
+
+function projectNameFromPath(filePath: string): string {
+  return path.basename(filePath, path.extname(filePath));
+}
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('dual:paths', () => ({
@@ -21,4 +41,105 @@ export function registerIpcHandlers(): void {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     return entries.filter((e) => e.isFile()).map((e) => e.name);
   });
+
+  ipcMain.handle('dual:open-project-dialog', async (): Promise<ProjectFile | null> => {
+    const result = await dialog.showOpenDialog({
+      defaultPath: path.join(getUserDataRoot(), 'projects'),
+      filters: [{ name: 'Strudel Project', extensions: ['strudel'] }],
+      properties: ['openFile'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+
+    const filePath = result.filePaths[0];
+    const code = await fs.readFile(filePath, 'utf-8');
+    return { path: filePath, name: projectNameFromPath(filePath), code };
+  });
+
+  ipcMain.handle(
+    'dual:save-project-dialog',
+    async (_event, code: unknown): Promise<{ path: string; name: string } | null> => {
+      if (typeof code !== 'string') {
+        throw new Error('dual:save-project-dialog expects a string code');
+      }
+
+      const result = await dialog.showSaveDialog({
+        defaultPath: path.join(getUserDataRoot(), 'projects', 'untitled.strudel'),
+        filters: [{ name: 'Strudel Project', extensions: ['strudel'] }],
+      });
+      if (result.canceled || !result.filePath) return null;
+
+      await fs.writeFile(result.filePath, code, 'utf-8');
+      return { path: result.filePath, name: projectNameFromPath(result.filePath) };
+    },
+  );
+
+  ipcMain.handle('dual:write-file', async (_event, filePath: unknown, code: unknown): Promise<void> => {
+    if (typeof filePath !== 'string' || typeof code !== 'string') {
+      throw new Error('dual:write-file expects (path: string, code: string)');
+    }
+    await fs.writeFile(filePath, code, 'utf-8');
+  });
+
+  ipcMain.handle('dual:get-last-project', async (): Promise<ProjectFile | null> => {
+    const lastPath = getLastProjectPath();
+    if (!lastPath) return null;
+
+    try {
+      const code = await fs.readFile(lastPath, 'utf-8');
+      return { path: lastPath, name: projectNameFromPath(lastPath), code };
+    } catch {
+      // File was moved/deleted since the last run — boot with no project instead of throwing.
+      return null;
+    }
+  });
+
+  ipcMain.handle('dual:set-last-project', (_event, filePath: unknown) => {
+    if (filePath !== null && typeof filePath !== 'string') {
+      throw new Error('dual:set-last-project expects a string or null');
+    }
+    setLastProjectPath(filePath);
+  });
+
+  ipcMain.handle('dual:set-dirty', (_event, dirty: unknown) => {
+    if (typeof dirty !== 'boolean') {
+      throw new Error('dual:set-dirty expects a boolean');
+    }
+    isDirty = dirty;
+  });
+
+  // Commit/push failures (e.g. git not installed, no user.name/user.email
+  // configured) are caught and returned as data rather than left to reject
+  // the IPC call — the renderer surfaces them as a notification either way,
+  // and this keeps handleMenuGit* free of try/catch on the caller side.
+  ipcMain.handle(
+    'dual:git-commit',
+    async (
+      _event,
+      message: unknown,
+    ): Promise<{ committed: boolean; output: string; error?: boolean }> => {
+      if (typeof message !== 'string') {
+        throw new Error('dual:git-commit expects a string message');
+      }
+      const dir = path.join(getUserDataRoot(), 'projects');
+      try {
+        return await gitCommit(dir, message);
+      } catch (error) {
+        // Distinct from the "nothing to commit" case (which gitCommit resolves,
+        // not throws) so the renderer can tell a real failure apart from a no-op.
+        return { committed: false, output: String(error), error: true };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'dual:git-push',
+    async (): Promise<{ pushed: boolean; message: string; error?: boolean }> => {
+      const dir = path.join(getUserDataRoot(), 'projects');
+      try {
+        return await gitPush(dir);
+      } catch (error) {
+        return { pushed: false, message: String(error), error: true };
+      }
+    },
+  );
 }

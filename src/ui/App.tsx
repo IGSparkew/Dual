@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import styles from './App.module.css';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
 import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
+import { projectManager } from '@core/project/impl/ProjectManagerImpl';
+import { useMenuBridge } from '@core/project/useMenuBridge';
 import { useStore } from '@core/state/store';
 import { LayoutManager } from '@layout/components/LayoutManager';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
@@ -25,10 +27,21 @@ export function App() {
   const layouts = useLayoutRegistry();
   const [activeLayoutId, setActiveLayoutId] = useState('production');
 
+  useMenuBridge();
+
   useEffect(() => {
     strudelBridge.init(); // audio on first gesture
     void sampleLoader.loadDefaults(); // register the maps right away (no audio context needed)
   }, []);
+
+  useEffect(() => {
+    // strudelBridge only evaluates once the engine is ready (post first-gesture
+    // init) — loading the project earlier would set activeCode but silently
+    // drop the pattern evaluation (StrudelBridgeImpl.evaluate no-ops until init).
+    if (engineStatus === 'ready') {
+      void projectManager.loadLastProjectOnBoot();
+    }
+  }, [engineStatus]);
 
   if (engineStatus !== 'ready') {
     return (

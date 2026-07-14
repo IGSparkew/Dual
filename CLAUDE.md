@@ -330,15 +330,21 @@ Le code est évalué via `@strudel/transpiler`. Les patterns retournent des **ha
 
 ## Roadmap (7 phases, ~32 semaines)
 
-1. **Phase 1 (sem. 1–5)** — Fondations : intégration Strudel, Panel System, Code Editor, parseur, Session View, Transport
-2. **Phase 2 (sem. 6–10)** — Visualisation : Piano Roll, interactions souris, gammes, synchro bidirectionnelle, Drum Grid
-3. **Phase 3 (sem. 11–14)** — Mixer & Groupes : mixer visuel, `stack()`, dégroupage, rack d'effets
-4. **Phase 4 (sem. 15–18)** — Effets & Presets : effets intégrés, chaînes, presets JSON, enveloppes
-5. **Phase 5 (sem. 19–22)** — Automations : éditeur d'automation, automation clip/globale, dessin libre → pattern
-6. **Phase 6 (sem. 23–27)** — Samples & Projet : browser, import, sample chopper, preview
-7. **Phase 7 (sem. 28–32)** — Modules utilisateurs : loader dynamique, sandbox, SDK docs, marketplace
+> État au 2026-07-14, branche `dev`, app **Dual** v0.4.6.
+
+1. ✅ **Phase 1 (sem. 1–5)** — Fondations : intégration Strudel, Panel System, Code Editor (`modules/editor`), `CodeRegion` (parseur AST), Session View (`modules/session`), Transport (`modules/transport`)
+2. ✅ **Phase 2 (sem. 6–10)** — Visualisation : Piano Roll (`modules/piano-roll`), interactions souris, gammes (`@strudel/tonal`), synchro bidirectionnelle (`SyncController`), Drum Grid (`modules/drum-grid`) — inclut en bonus **Mesures/loop length** (`.slow(n)`, non prévu au plan initial)
+3. ✅ **Phase 3 (sem. 11–14)** — Mixer & Groupes : mixer visuel (`modules/mixer`, faders/pan/solo/mute/VU-mètres), modèle `stack()` de clips nommés (voir [[named-clips-model]]), **Arrangement** timeline (`modules/arrangement`, non prévu au plan initial) — rack d'effets livré en avance (voir Phase 4)
+4. 🚧 **Phase 4 (sem. 15–18)** — Effets & Presets : FX Rack livré (`modules/effects`, catalogue 13 unités, chaînes, duck sidechain par orbit) ; **presets JSON** et **enveloppes** restent à faire
+5. ⬜ **Phase 5 (sem. 19–22)** — Automations : `modules/automation` n'est encore qu'un stub (`.gitkeep`) — éditeur d'automation, automation clip/globale, dessin libre → pattern à faire
+6. ⬜ **Phase 6 (sem. 23–27)** — Samples & Projet : `modules/browser` n'est encore qu'un stub (`.gitkeep`) — le moteur est prêt (samples dough-samples vendorés hors-ligne, `SampleLoader.getSoundNames()`/banques exposées, voir [[local-samples]] et [[sound-map-banks]]) mais l'UI browser/import/chopper/preview reste à construire
+7. 🚧 **Phase 7 (sem. 28–32)** — Modules utilisateurs : socle Electron « Dual » livré (chemins, `userdata/`, protocole `dual://`, `extraResources`, voir [[electron-desktop]]) ; loader dynamique de modules user, sandbox, SDK docs et marketplace restent à faire
+
+**Hors roadmap initiale, livré en parallèle** : desktop Electron (app **Dual**), infra de tests vitest (109 tests sur le FX Rack + suite globale, voir [[sound-map-banks]] pour le gotcha Node 25).
 
 **Priorités** : `CRITIQUE` (bloquant) > `HAUTE` (core) > `MOYENNE` (non bloquant) > `BASSE` (futur)
+
+**Prochaines étapes probables** : Automations (Phase 5) ou Browser/sample chopper (Phase 6) — les deux plus gros blocs encore à l'état de stub ; sinon presets/enveloppes pour clore la Phase 4.
 
 ---
 

@@ -113,6 +113,19 @@ export class StrudelBridgeImpl implements StrudelBridge {
     return this.replInstance?.scheduler ?? null;
   }
 
+  getCurrentPattern() {
+    return this.currentPattern;
+  }
+
+  refreshAudioContext(): void {
+    // `renderPatternAudio` closes the global AudioContext before swapping in an
+    // OfflineAudioContext, then resets it to null when done. Our repl captured
+    // `getTime: () => this.audioContext.currentTime` against the context stored
+    // here, so after an export that reference points at a closed context and
+    // live playback silently breaks. Re-read the current live context to heal it.
+    this.audioContext = getAudioContext();
+  }
+
   dispose(): void {
     if (this.replInstance) {
       this.replInstance.scheduler.stop();

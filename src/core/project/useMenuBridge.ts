@@ -23,11 +23,13 @@ export function useMenuBridge(): void {
     if (!desktop) return unsubscribeDirtyTracking;
 
     async function handleMenuSave(): Promise<void> {
-      await projectManager.save();
-      // Always ack, even on a cancelled Save As: main no-ops unless a window
-      // close is waiting on this save (see electron/main.ts `closeRequested`),
-      // but it must still clear that flag on cancel or the window can never close.
-      await desktop!.confirmSaved(!!useStore.getState().currentProjectPath);
+      const saved = await projectManager.save();
+      // Always ack, even on a cancelled/failed save: main no-ops unless a window
+      // close is waiting on this save (see electron/main.ts `closeRequested`), but
+      // it must still clear that flag on failure or the window can never close —
+      // and it must NOT destroy the window unless the write actually succeeded,
+      // or a failed save (disk full, locked file…) would silently lose changes.
+      await desktop!.confirmSaved(saved);
     }
 
     function handleMenuExportWav(): void {

@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getCoreRoot, getPortableRoot, getUserDataRoot } from './paths';
@@ -24,7 +24,10 @@ function projectNameFromPath(filePath: string): string {
   return path.basename(filePath, path.extname(filePath));
 }
 
-export function registerIpcHandlers(): void {
+// Parenting the open/save dialogs to the main window makes them modal: the
+// window can't be closed (or a second dialog opened) while one is pending —
+// closes the gap where a close-flow Save As left unattended.
+export function registerIpcHandlers(win: BrowserWindow): void {
   ipcMain.handle('dual:paths', () => ({
     portableRoot: getPortableRoot(),
     coreRoot: getCoreRoot(),
@@ -43,7 +46,7 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('dual:open-project-dialog', async (): Promise<ProjectFile | null> => {
-    const result = await dialog.showOpenDialog({
+    const result = await dialog.showOpenDialog(win, {
       defaultPath: path.join(getUserDataRoot(), 'projects'),
       filters: [{ name: 'Strudel Project', extensions: ['strudel'] }],
       properties: ['openFile'],
@@ -62,7 +65,7 @@ export function registerIpcHandlers(): void {
         throw new Error('dual:save-project-dialog expects a string code');
       }
 
-      const result = await dialog.showSaveDialog({
+      const result = await dialog.showSaveDialog(win, {
         defaultPath: path.join(getUserDataRoot(), 'projects', 'untitled.strudel'),
         filters: [{ name: 'Strudel Project', extensions: ['strudel'] }],
       });

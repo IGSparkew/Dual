@@ -70,12 +70,19 @@ function attachCloseHandler(win: BrowserWindow): void {
     }
     // choice === 2 (Cancel): nothing else to do, preventDefault already stopped the close.
   });
+
+  // Reset once the window is actually gone — otherwise on macOS (where the app
+  // survives window-all-closed) a "Don't Save" close leaves this true forever,
+  // and the next window's close-with-unsaved-changes flow silently skips the
+  // confirmation dialog instead of showing it.
+  win.on('closed', () => {
+    closeRequested = false;
+  });
 }
 
 app.whenReady().then(() => {
   ensureUserDirs();
   seedUserDirs();
-  registerIpcHandlers();
   registerDualProtocolHandler();
 
   // Only WAV export triggers a download in this app (via renderPatternAudio's
@@ -89,6 +96,7 @@ app.whenReady().then(() => {
   });
 
   const win = createWindow();
+  registerIpcHandlers(win); // needs the window to parent open/save dialogs (modal)
   buildMenu(win);
 
   // Ack sent by the renderer once the save triggered by the close flow settles

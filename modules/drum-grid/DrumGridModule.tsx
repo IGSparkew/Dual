@@ -20,6 +20,7 @@ import {
   type DrumGrid,
   type GridClip,
 } from './drum-grid';
+import { loopPhase, rescaleStepCount, writeCycles } from '@modules/shared/loop-length';
 import { DrumGridToolbar } from './components/DrumGridToolbar';
 import { drawGrid, rowColor, ROW_HEIGHT } from './components/grid-renderer';
 import { hitTest, type CellHit } from './components/grid-interaction';
@@ -177,9 +178,11 @@ export function DrumGridModule({ api }: PanelProps) {
         const canvas = canvasRef.current;
         const view = viewRef.current;
         if (!canvas || !view.grid || view.grid.rows.length === 0) return;
-        // 4 beats = 1 cycle — same convention as the mixer's VU loop.
+        // A loop of n measures (`.slow(n)`) spans n cycles; an unmanaged
+        // `.slow` (cycles null) falls back to a single-cycle sweep.
         const { status, position } = api.getTransport();
-        const playhead = status === 'playing' ? ((position / 4) % 1 + 1) % 1 : null;
+        const cycles = view.grid.cycles ?? 1;
+        const playhead = status === 'playing' ? loopPhase(position, cycles) : null;
         const surface = api.canvas.surface(canvas);
         if (surface) {
           drawGrid(surface, {
@@ -304,6 +307,33 @@ export function DrumGridModule({ api }: PanelProps) {
     applyGrid(renameRow(grid, index, sample));
   };
 
+  // « Pas » is steps per measure — the document holds the total step count.
+  const handleStepCount = (perMeasure: number) => {
+    if (!grid) return;
+    applyGrid(setStepCount(grid, Math.round(perMeasure * (grid.cycles ?? 1))));
+  };
+
+  // « Mesures »: keep the per-step duration constant — when the total divides
+  // evenly by the old cycle count, extend (right-pad) or crop the content to
+  // `perMeasure × m` steps; otherwise only the `.slow` factor changes. Both
+  // the content splice and the `.slow` splice land in ONE write (each helper
+  // re-resolves its offsets from the text it receives). The appended `.slow(m)`
+  // sits at the end of the chain, so it also stretches the patterned arguments
+  // of FX chained before it (e.g. `.lpf("400 800")`) — intended: the whole
+  // clip loops over m measures.
+  const handleCycles = (m: number) => {
+    const name = activeRef.current;
+    if (!name || !grid || grid.cycles === null) return; // unmanaged `.slow` — hands off
+    const c = grid.cycles ?? 1;
+    if (m === c) return;
+    const total = rescaleStepCount(grid.stepCount, c, m);
+    const next: DrumGrid = { ...setStepCount(grid, total), cycles: m };
+    setGrid(next); // optimistic — refresh re-derives from the document
+    let text = writeGrid(api.code, api.getCode(), name, next);
+    text = writeCycles(api.code, text, name, m);
+    api.code.write(text);
+  };
+
   const handleBank = (bank: string) => {
     const name = activeRef.current;
     if (!name) return;
@@ -352,7 +382,8 @@ export function DrumGridModule({ api }: PanelProps) {
           setActiveClip(name);
           refresh();
         }}
-        onStepCount={(n) => grid && applyGrid(setStepCount(grid, n))}
+        onStepCount={handleStepCount}
+        onCycles={handleCycles}
         onToggleForm={() =>
           grid && applyGrid(setForm(grid, grid.form === 'merged' ? 'split' : 'merged'))
         }

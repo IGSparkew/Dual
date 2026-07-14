@@ -25,6 +25,7 @@ const LINE_SEMITONE = 'rgba(255, 255, 255, 0.05)';
 const LINE_OCTAVE = 'rgba(255, 255, 255, 0.16)';
 const LINE_STEP = 'rgba(255, 255, 255, 0.05)';
 const LINE_BEAT = 'rgba(255, 255, 255, 0.14)';
+const LINE_MEASURE = 'rgba(255, 255, 255, 0.3)';
 const HOVER_CELL = 'rgba(255, 255, 255, 0.08)';
 const PLAYHEAD = 'rgba(255, 255, 255, 0.8)';
 
@@ -70,9 +71,14 @@ export function drawRoll(surface: CanvasSurface, view: RollViewState): void {
     ctx.fillRect(gutter, y + rowH - dpr / 2, laneW, dpr);
   }
 
-  // Step grid: vertical lines, accent every 4 steps.
+  // Step grid: vertical lines, accent every 4 steps, and a stronger measure
+  // line every stepCount / cycles columns when the loop spans several cycles.
+  const cycles = roll.cycles ?? 1;
+  const perMeasure =
+    cycles > 1 && roll.stepCount % cycles === 0 ? roll.stepCount / cycles : 0;
   for (let i = 0; i <= roll.stepCount; i++) {
-    ctx.fillStyle = i % 4 === 0 ? LINE_BEAT : LINE_STEP;
+    const onMeasure = perMeasure > 0 && i % perMeasure === 0;
+    ctx.fillStyle = onMeasure ? LINE_MEASURE : i % 4 === 0 ? LINE_BEAT : LINE_STEP;
     ctx.fillRect(gutter + i * cellW - dpr / 2, 0, dpr, height);
   }
 

@@ -6,6 +6,9 @@ const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOut
   await import('@strudel/webaudio');
 const { repl, evalScope } = await import('@strudel/core');
 const { transpiler } = await import('@strudel/transpiler');
+// General-MIDI `gm_*` sounds (piano, guitars, synths…). registerSoundfonts adds
+// them to the sound browser; the actual font data is fetched lazily on first play.
+const { registerSoundfonts, setSoundfontUrl } = await import('@strudel/soundfonts');
 const miniModule = await import('@strudel/mini');
 const tonalModule = await import('@strudel/tonal'); // .scale(), chords, note helpers
 const core = await import('@strudel/core');
@@ -38,6 +41,16 @@ export class StrudelBridgeImpl implements StrudelBridge {
         await registerSynthSounds();
         // Default samples are registered locally by sampleLoader.loadDefaults()
         // (see App.tsx) — no network fetch from github here.
+
+        // Soundfonts (gm_*): point at the vendored local folder so playback stays
+        // fully offline (run `npm run vendor:soundfonts` to populate it). Base URL
+        // mirrors SampleLoaderImpl: dual:// under Electron, BASE_URL in the browser.
+        // fontloader fetches `${base}/${name}.js`, so no trailing slash here.
+        const soundfontBase = window.dualDesktop
+          ? 'dual://core/samples/soundfonts'
+          : `${import.meta.env.BASE_URL}samples/soundfonts`;
+        setSoundfontUrl(soundfontBase);
+        registerSoundfonts();
         this.replInstance = repl({
           defaultOutput: webaudioOutput,
           getTime: () => this.audioContext!.currentTime,

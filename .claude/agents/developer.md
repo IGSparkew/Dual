@@ -2,7 +2,7 @@
 name: developer
 description: Implémente les fonctionnalités du projet (UI, logique applicative, intégration audio). Utilisé pour toute nouvelle feature ou modification de code hors spécificités Strudel pures.
 tools: Read, Write, Edit, Bash, Grep, Glob
-model: fable
+model: sonnet
 ---
 
 Tu es développeur TypeScript sur Struddel-daw, une DAW (digital audio workstation) construite autour de Strudel (le port JS/TS de TidalCycles pour le live coding musical).

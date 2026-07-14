@@ -15,7 +15,7 @@ import {
   type RollClip,
   type RollNote,
 } from './piano-roll';
-import { loopPhase, rescaleStepCount, writeCycles } from '@modules/shared/loop-length';
+import { rescaleStepCount, writeCycles } from '@modules/shared/loop-length';
 import { PianoRollToolbar } from './components/PianoRollToolbar';
 import { drawRoll, ROLL_HEIGHT, ROW_HEIGHT } from './components/piano-roll-renderer';
 import { cellAt, hitTest, type RollHit } from './components/note-interaction';

@@ -4,6 +4,7 @@ import { eventBus } from '@core/events/EventBusImpl';
 import { getStrudelShareLink } from '@core/project/shareLink';
 import { useStore } from '@core/state/store';
 import { getLastSyncedCode, projectManager } from './impl/ProjectManagerImpl';
+import { requestPrompt } from '@ui/shared/prompt-dialog';
 
 /**
  * Bridges native File menu actions (New/Open/Save/Save As) to ProjectManager,
@@ -32,8 +33,8 @@ export function useMenuBridge(): void {
       await desktop!.confirmSaved(saved);
     }
 
-    function handleMenuExportWav(): void {
-      const input = window.prompt('Number of cycles to export', '4');
+    async function handleMenuExportWav(): Promise<void> {
+      const input = await requestPrompt('Number of cycles to export', '4');
       if (input === null) return; // user cancelled
 
       const cycles = Number(input);
@@ -52,20 +53,27 @@ export function useMenuBridge(): void {
       }
     }
 
-    async function handleMenuExportFile(): Promise<void> {
-      // Deliberately bypasses ProjectManager.saveAs(): this is a one-off export
-      // to another location, not a change of the current project's working file.
-      const result = await desktop!.saveProjectDialog(useStore.getState().activeCode);
-      if (!result) return;
-      useStore.getState().addNotification(`Exported to "${result.name}"`, 'success');
+    // Git targets the directory of the currently open project file — commit/push
+    // are meaningless before the project has a location on disk, so both bail
+    // out with a notification asking for a save first rather than falling back
+    // to some other implicit folder.
+    function requireProjectPath(): string | null {
+      const projectPath = useStore.getState().currentProjectPath;
+      if (!projectPath) {
+        useStore.getState().addNotification('Save the project before using Git', 'warning');
+      }
+      return projectPath;
     }
 
     async function handleMenuGitCommit(): Promise<void> {
+      const projectPath = requireProjectPath();
+      if (!projectPath) return;
+
       const defaultMessage = `Save project: ${useStore.getState().projectName} (${new Date().toISOString().slice(0, 10)})`;
-      const message = window.prompt('Commit message', defaultMessage);
+      const message = await requestPrompt('Commit message', defaultMessage);
       if (message === null) return; // user cancelled
 
-      const result = await desktop!.gitCommit(message);
+      const result = await desktop!.gitCommit(projectPath, message);
       if (result.committed) {
         useStore.getState().addNotification('Project committed', 'success');
       } else if (result.error) {
@@ -75,8 +83,26 @@ export function useMenuBridge(): void {
       }
     }
 
+    async function handleMenuGitSetRemote(): Promise<void> {
+      const projectPath = requireProjectPath();
+      if (!projectPath) return;
+
+      const url = await requestPrompt('Git remote URL (origin)', '');
+      if (url === null || url.trim() === '') return; // user cancelled
+
+      const result = await desktop!.gitSetRemote(projectPath, url.trim());
+      if (result.ok) {
+        useStore.getState().addNotification('Git remote updated', 'success');
+      } else {
+        useStore.getState().addNotification(result.message ?? 'Failed to set remote', 'error');
+      }
+    }
+
     async function handleMenuGitPush(): Promise<void> {
-      const result = await desktop!.gitPush();
+      const projectPath = requireProjectPath();
+      if (!projectPath) return;
+
+      const result = await desktop!.gitPush(projectPath);
       if (result.pushed) {
         useStore.getState().addNotification('Project pushed to remote', 'success');
       } else {
@@ -89,10 +115,10 @@ export function useMenuBridge(): void {
       desktop.onMenuAction('open-project', () => void projectManager.openProject()),
       desktop.onMenuAction('save-project', () => void handleMenuSave()),
       desktop.onMenuAction('save-as-project', () => void projectManager.saveAs()),
-      desktop.onMenuAction('export-wav', handleMenuExportWav),
+      desktop.onMenuAction('export-wav', () => void handleMenuExportWav()),
       desktop.onMenuAction('copy-strudel-link', () => void handleMenuCopyStrudelLink()),
-      desktop.onMenuAction('export-file', () => void handleMenuExportFile()),
       desktop.onMenuAction('git-commit', () => void handleMenuGitCommit()),
+      desktop.onMenuAction('git-set-remote', () => void handleMenuGitSetRemote()),
       desktop.onMenuAction('git-push', () => void handleMenuGitPush()),
     ];
 

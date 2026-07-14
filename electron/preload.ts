@@ -8,9 +8,9 @@ const MENU_ACTIONS = [
   'save-as-project',
   'export-wav',
   'copy-strudel-link',
-  'export-file',
   'git-commit',
   'git-push',
+  'git-set-remote',
 ] as const;
 type MenuAction = (typeof MENU_ACTIONS)[number];
 
@@ -24,8 +24,11 @@ contextBridge.exposeInMainWorld('dualDesktop', {
   setLastProject: (path: string | null) => ipcRenderer.invoke('dual:set-last-project', path),
   setDirty: (dirty: boolean) => ipcRenderer.invoke('dual:set-dirty', dirty),
   confirmSaved: (saved: boolean) => ipcRenderer.invoke('dual:confirm-saved', saved),
-  gitCommit: (message: string) => ipcRenderer.invoke('dual:git-commit', message),
-  gitPush: () => ipcRenderer.invoke('dual:git-push'),
+  gitCommit: (projectPath: string, message: string) =>
+    ipcRenderer.invoke('dual:git-commit', projectPath, message),
+  gitPush: (projectPath: string) => ipcRenderer.invoke('dual:git-push', projectPath),
+  gitSetRemote: (projectPath: string, url: string) =>
+    ipcRenderer.invoke('dual:git-set-remote', projectPath, url),
   onMenuAction: (action: MenuAction, callback: () => void) => {
     if (!MENU_ACTIONS.includes(action)) {
       throw new Error(`Unknown menu action: ${action}`);

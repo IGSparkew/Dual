@@ -8,6 +8,7 @@ import { useStore } from '@core/state/store';
 import { LayoutManager } from '@layout/components/LayoutManager';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
+import { PromptDialog } from './shared/PromptDialog';
 
 // Register all built-in modules
 import '@modules/transport/index';
@@ -75,6 +76,7 @@ export function App() {
         <LayoutManager layoutId={activeLayoutId} />
       </main>
       <Notifications />
+      <PromptDialog />
     </div>
   );
 }

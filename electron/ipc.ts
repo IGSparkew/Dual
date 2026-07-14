@@ -4,7 +4,7 @@ import path from 'node:path';
 import { getCoreRoot, getPortableRoot, getUserDataRoot } from './paths';
 import { USER_DIRS, type UserDir } from './userdata';
 import { getLastProjectPath, setLastProjectPath } from './appState';
-import { gitCommit, gitPush } from './git';
+import { gitCommit, gitPush, setRemote } from './git';
 
 interface ProjectFile {
   path: string;
@@ -114,16 +114,22 @@ export function registerIpcHandlers(win: BrowserWindow): void {
   // configured) are caught and returned as data rather than left to reject
   // the IPC call — the renderer surfaces them as a notification either way,
   // and this keeps handleMenuGit* free of try/catch on the caller side.
+  //
+  // The repo targeted is the directory containing the given project file
+  // (not a single fixed folder) — each project defines its own commit target,
+  // which also lets projects saved outside userdata/projects (via Save As) be
+  // versioned in place.
   ipcMain.handle(
     'dual:git-commit',
     async (
       _event,
+      projectPath: unknown,
       message: unknown,
     ): Promise<{ committed: boolean; output: string; error?: boolean }> => {
-      if (typeof message !== 'string') {
-        throw new Error('dual:git-commit expects a string message');
+      if (typeof projectPath !== 'string' || typeof message !== 'string') {
+        throw new Error('dual:git-commit expects (projectPath: string, message: string)');
       }
-      const dir = path.join(getUserDataRoot(), 'projects');
+      const dir = path.dirname(projectPath);
       try {
         return await gitCommit(dir, message);
       } catch (error) {
@@ -136,12 +142,40 @@ export function registerIpcHandlers(win: BrowserWindow): void {
 
   ipcMain.handle(
     'dual:git-push',
-    async (): Promise<{ pushed: boolean; message: string; error?: boolean }> => {
-      const dir = path.join(getUserDataRoot(), 'projects');
+    async (
+      _event,
+      projectPath: unknown,
+    ): Promise<{ pushed: boolean; message: string; error?: boolean }> => {
+      if (typeof projectPath !== 'string') {
+        throw new Error('dual:git-push expects a string projectPath');
+      }
+      const dir = path.dirname(projectPath);
       try {
         return await gitPush(dir);
       } catch (error) {
         return { pushed: false, message: String(error), error: true };
+      }
+    },
+  );
+
+  // Lets each project point `git push` at its own remote instead of whatever
+  // origin (if any) happens to already be configured in that directory.
+  ipcMain.handle(
+    'dual:git-set-remote',
+    async (
+      _event,
+      projectPath: unknown,
+      url: unknown,
+    ): Promise<{ ok: boolean; message?: string }> => {
+      if (typeof projectPath !== 'string' || typeof url !== 'string') {
+        throw new Error('dual:git-set-remote expects (projectPath: string, url: string)');
+      }
+      const dir = path.dirname(projectPath);
+      try {
+        await setRemote(dir, url);
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, message: String(error) };
       }
     },
   );

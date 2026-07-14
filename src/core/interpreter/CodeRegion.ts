@@ -155,6 +155,13 @@ export interface CodeRegion {
    *  `callArgs` again on its span. */
   callArgs(code: string, name: string): CallArg[] | null;
 
+  /** Arguments of the first top-level bare call statement whose callee is
+   *  `calleeName` (`setcps(0.5)` at the document root — an ExpressionStatement,
+   *  not a declaration, not a chained/member call). null when no such statement
+   *  exists. Generic over any top-level function: the consumer names `setcps`,
+   *  `samples`, …; the API does not. Spans are document-absolute. */
+  leadingCallArgs(code: string, calleeName: string): CallArg[] | null;
+
   /** Method calls chained on a declaration's initializer, in source order.
    *  Excludes the root constructor (`s("bd").lpf(800).room(0.4)` → two links,
    *  `lpf` then `room`). null when the declaration is absent or not a call. */
@@ -176,6 +183,15 @@ export interface CodeRegion {
   /** Replace a declaration's initializer in place — splices only
    *  `initStart..initEnd`, leaving comments and spacing byte-identical. */
   setInit(code: string, name: string, source: string): string;
+
+  /** Set the arguments of the first top-level bare call `calleeName(...)`, in
+   *  place — splices only the argument span, leaving the callee, parens and the
+   *  rest of the document byte-identical. When no such call exists, insert
+   *  `calleeName(args);` as the very first line of the document. A head
+   *  insertion never displaces the trailing output, so the document still ends
+   *  on an evaluable expression (the transpiler's hard rule). Returns `code`
+   *  unchanged when the document does not parse. */
+  setLeadingCall(code: string, calleeName: string, args: string): string;
 
   /** Replace the output region (or add one if absent). Guarantees the document
    *  ends on an evaluable expression — the transpiler's hard rule. */

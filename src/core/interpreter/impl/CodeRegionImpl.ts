@@ -239,6 +239,19 @@ export class CodeRegionImpl implements CodeRegion {
     return null;
   }
 
+  leadingCallArgs(code: string, calleeName: string): CallArg[] | null {
+    let ast: Program;
+    try {
+      ast = astManipulatorImpl.parse(code) as Program;
+    } catch {
+      return null;
+    }
+    const call = findLeadingCall(ast, calleeName);
+    if (!call) return null;
+    // The whole document was parsed, so node offsets are document-absolute.
+    return call.arguments.map((arg) => toCallArg(arg, code));
+  }
+
   chainCalls(code: string, name: string): ChainLink[] | null {
     let ast: Program;
     try {
@@ -358,6 +371,36 @@ export class CodeRegionImpl implements CodeRegion {
     return this.spliceSpan(code, decl.initStart, decl.initEnd, source);
   }
 
+  setLeadingCall(code: string, calleeName: string, args: string): string {
+    let ast: Program;
+    try {
+      ast = astManipulatorImpl.parse(code) as Program;
+    } catch {
+      return code; // broken document — never write into text we cannot parse
+    }
+
+    const call = findLeadingCall(ast, calleeName);
+    if (call) {
+      // Replace only the argument span, keeping `calleeName(` and `)` intact.
+      // With arguments, splice from the first arg's start to the last arg's end;
+      // for an empty call (`setcps()`), splice the gap between the parens.
+      const openParen = code.indexOf('(', call.callee.end);
+      const argStart =
+        call.arguments.length > 0 ? call.arguments[0].start : openParen + 1;
+      const argEnd =
+        call.arguments.length > 0
+          ? call.arguments[call.arguments.length - 1].end
+          : call.end - 1;
+      return this.spliceSpan(code, argStart, argEnd, args);
+    }
+
+    // Absent — prepend the call as the very first line. A head insertion leaves
+    // the trailing output untouched, so the document still ends on an evaluable
+    // expression (the transpiler's hard rule).
+    const stmt = `${calleeName}(${args});`;
+    return code === '' ? `${stmt}\n` : `${stmt}\n${code}`;
+  }
+
   setOutput(code: string, text: string): string {
     const output = this.locateOutput(code);
     if (output.kind === 'none') return appendLine(code, text);
@@ -385,6 +428,24 @@ export class CodeRegionImpl implements CodeRegion {
 function appendLine(code: string, text: string): string {
   const pre = code === '' || code.endsWith('\n') ? code : `${code}\n`;
   return `${pre}${text}\n`;
+}
+
+/**
+ * First top-level bare call statement whose callee is `calleeName` — a
+ * document-root `ExpressionStatement` wrapping a direct `calleeName(...)` call
+ * (not a declaration, not a chained/member call). null when there is none.
+ */
+function findLeadingCall(ast: Program, calleeName: string): CallExpression | null {
+  for (const stmt of ast.body) {
+    if (stmt.type !== 'ExpressionStatement') continue;
+    const expr = (stmt as ExpressionStatement).expression;
+    if (expr.type !== 'CallExpression') continue;
+    const call = expr as CallExpression;
+    if (call.callee.type === 'Identifier' && (call.callee as Identifier).name === calleeName) {
+      return call;
+    }
+  }
+  return null;
 }
 
 /** Resolve the simple identifier name of a CallExpression callee, else null. */

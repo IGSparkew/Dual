@@ -41,6 +41,9 @@ export interface PanelCodeApi {
   dollarExprs(code: string): DollarExpr[];
   /** Arguments of the call that initializes `name` (null if not a call). */
   callArgs(code: string, name: string): CallArg[] | null;
+  /** Arguments of the first top-level bare call `calleeName(...)` (null when
+   *  absent). Generic over any top-level function — setcps, samples, … */
+  leadingCallArgs(code: string, calleeName: string): CallArg[] | null;
   /** Method calls chained on `name`'s initializer, in source order, excluding
    *  the root constructor. null when the decl is absent or not a call. */
   chainCalls(code: string, name: string): ChainLink[] | null;
@@ -55,6 +58,9 @@ export interface PanelCodeApi {
   removeDecl(code: string, name: string): string;
   /** Replace a declaration's initializer in place (splices `initStart..initEnd`). */
   setInit(code: string, name: string, source: string): string;
+  /** Set the args of the first top-level bare call `calleeName(...)` in place, or
+   *  insert `calleeName(args);` as the document's first line when absent. */
+  setLeadingCall(code: string, calleeName: string, args: string): string;
   /** Replace the output region (or add one if absent). */
   setOutput(code: string, text: string): string;
   /** Remove the output region. */

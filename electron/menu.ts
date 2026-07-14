@@ -45,10 +45,6 @@ export function buildMenu(win: BrowserWindow): void {
         label: 'Copy strudel.cc Link',
         click: () => win.webContents.send('menu:copy-strudel-link'),
       },
-      {
-        label: 'Export File…',
-        click: () => win.webContents.send('menu:export-file'),
-      },
       { type: 'separator' },
       {
         label: 'Git',
@@ -56,6 +52,10 @@ export function buildMenu(win: BrowserWindow): void {
           {
             label: 'Commit Project',
             click: () => win.webContents.send('menu:git-commit'),
+          },
+          {
+            label: 'Set Remote URL…',
+            click: () => win.webContents.send('menu:git-set-remote'),
           },
           {
             label: 'Push to Remote',

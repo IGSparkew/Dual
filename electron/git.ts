@@ -51,14 +51,37 @@ export async function gitCommit(
   }
 }
 
+export async function setRemote(dir: string, url: string): Promise<void> {
+  await ensureGitRepo(dir);
+  const args = (await hasRemote(dir))
+    ? ['remote', 'set-url', 'origin', url]
+    : ['remote', 'add', 'origin', url];
+  await execFile('git', args, { cwd: dir });
+}
+
 export async function gitPush(dir: string): Promise<{ pushed: boolean; message: string }> {
   if (!(await hasRemote(dir))) {
     return {
       pushed: false,
-      message: 'No git remote configured — run `git remote add origin <url>` in userdata/projects',
+      message: `No git remote configured — run \`git remote add origin <url>\` in ${dir}`,
     };
   }
 
-  const { stdout, stderr } = await execFile('git', ['push'], { cwd: dir });
-  return { pushed: true, message: stdout || stderr };
+  try {
+    const { stdout, stderr } = await execFile('git', ['push'], { cwd: dir });
+    return { pushed: true, message: stdout || stderr };
+  } catch (error) {
+    if (isExecFileError(error) && /has no upstream branch/.test(`${error.stdout ?? ''}${error.stderr ?? ''}`)) {
+      // First push on a fresh branch: `git push` alone has nothing to infer the
+      // upstream from. Set it explicitly against the current branch and retry.
+      const { stdout: branch } = await execFile('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir });
+      const { stdout, stderr } = await execFile(
+        'git',
+        ['push', '--set-upstream', 'origin', branch.trim()],
+        { cwd: dir },
+      );
+      return { pushed: true, message: stdout || stderr };
+    }
+    throw error;
+  }
 }

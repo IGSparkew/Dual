@@ -22,6 +22,7 @@ import { noteToMidi } from '@strudel/core/util.mjs';
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 import type { Decl } from '@core/interpreter/CodeRegion';
 import { miniOf, splitChain, tokenize } from '@modules/shared/mini-notation';
+import { readCycles } from '@modules/shared/loop-length';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,11 @@ export interface PianoRoll {
    *  Voices with differing chains mark the clip complex — a rewrite reallocates
    *  the voices, so a per-voice chain could not survive it. */
   chain?: string;
+  /** Loop length in cycles, read from the clip's chained `.slow(n)` — 1 when
+   *  absent (and when the field is omitted, e.g. bare test fixtures). null =
+   *  an unmanaged `.slow` (non-literal, decimal, duplicated): the « Mesures »
+   *  select is disabled and `writeCycles` keeps hands off. */
+  cycles?: number | null;
 }
 
 /** A clip as the piano roll sees it; `roll` is null when the content is beyond
@@ -170,7 +176,12 @@ export function deriveRoll(api: PanelCodeApi, code: string, name: string): Piano
   const stepCount = voices[0].stepCount;
   if (voices.some((v) => v.stepCount !== stepCount)) return null;
 
-  return { notes: voices.flatMap((v) => v.notes), stepCount, chain: chain ?? '' };
+  return {
+    notes: voices.flatMap((v) => v.notes),
+    stepCount,
+    chain: chain ?? '',
+    cycles: readCycles(api, code, name),
+  };
 }
 
 /** The clips the piano roll can list: session-convention `const … = stack(…)`. */

@@ -1,6 +1,7 @@
 /**
  * Tests for the bank-availability helpers of the drum grid
- * (`deriveBankChoices`, `missingRowSamples`).
+ * (`deriveBankChoices`, `missingRowSamples`) and the « Mesures » loop length
+ * surfaced by `deriveGrid` (`DrumGrid.cycles`).
  *
  * Context: superdough lowercases every sound-map key on registration
  * (`RolandTR909_bd` → `rolandtr909_bd`) and machine sounds split on their
@@ -8,12 +9,18 @@
  * the original bug: the grid offered instruments the bank cannot play.
  */
 import { describe, it, expect } from 'vitest';
+import { codeRegion } from '@core/interpreter/impl/CodeRegionImpl';
+import type { PanelCodeApi } from '@layout/api/PanelApi';
 import {
   deriveBankChoices,
+  deriveGrid,
   missingRowSamples,
   DRUM_BANKS,
   type DrumGrid,
 } from './drum-grid';
+
+// The grid only calls the read/splice surface; the write engine is UI.
+const api = codeRegion as unknown as PanelCodeApi;
 
 /** Build a grid whose rows carry the given samples (steps are irrelevant here). */
 function makeGrid(samples: string[], stepCount = 4): DrumGrid {
@@ -183,5 +190,42 @@ describe('original bug: RolandSH09 only ships bd', () => {
     const missing = missingRowSamples(sounds, grid, 'RolandSH09');
     expect(missing).toEqual(new Set(['sd', 'oh', 'cp']));
     expect(missing.has('bd')).toBe(false);
+  });
+});
+
+// ─── « Mesures » loop length (DrumGrid.cycles via deriveGrid) ─────────────────
+// The grid content stays editable regardless of the loop length: a clip-level
+// `.slow(n)` lives outside the `stack(...)` args deriveGrid reads, so the rows
+// are always parsed; only `cycles` reflects the (un)managed link.
+
+describe('deriveGrid — cycles (loop length)', () => {
+  it('defaults to 1 cycle when there is no .slow, rows still derived', () => {
+    const grid = deriveGrid(api, 'const clip = stack(s("bd sd"));', 'clip');
+    expect(grid).not.toBeNull();
+    expect(grid!.cycles).toBe(1);
+    expect(grid!.rows.map((r) => r.sample)).toEqual(['bd', 'sd']);
+    expect(grid!.stepCount).toBe(2);
+  });
+
+  it('reports the .slow(n) factor while keeping the pattern editable', () => {
+    const grid = deriveGrid(api, 'const clip = stack(s("bd sd hh")).slow(2);', 'clip');
+    expect(grid).not.toBeNull();
+    expect(grid!.cycles).toBe(2);
+    expect(grid!.rows.map((r) => r.sample)).toEqual(['bd', 'sd', 'hh']);
+    expect(grid!.stepCount).toBe(3);
+  });
+
+  it('exposes cycles null for an unmanaged .slow(sine) but still derives the rows', () => {
+    const grid = deriveGrid(api, 'const clip = stack(s("bd sd")).slow(sine);', 'clip');
+    expect(grid).not.toBeNull();
+    expect(grid!.cycles).toBeNull();
+    expect(grid!.rows.map((r) => r.sample)).toEqual(['bd', 'sd']);
+  });
+
+  it('reads the loop length alongside a bank chain (.slow after .bank)', () => {
+    const code = 'const clip = stack(s("bd sd")).bank("RolandTR909").slow(4);';
+    const grid = deriveGrid(api, code, 'clip');
+    expect(grid!.cycles).toBe(4);
+    expect(grid!.rows.map((r) => r.sample)).toEqual(['bd', 'sd']);
   });
 });

@@ -19,6 +19,7 @@ const BEAT_BG_EVEN = 'rgba(255, 255, 255, 0.055)';
 const BEAT_BG_ODD = 'rgba(255, 255, 255, 0.02)';
 const CELL_OFF = 'rgba(255, 255, 255, 0.07)';
 const HOVER_STROKE = 'rgba(255, 255, 255, 0.55)';
+const MEASURE_LINE = 'rgba(255, 255, 255, 0.28)';
 const PLAYHEAD = 'rgba(255, 255, 255, 0.8)';
 
 export function rowColor(rowIndex: number): string {
@@ -47,6 +48,17 @@ export function drawGrid(surface: CanvasSurface, view: GridViewState): void {
   for (let i = 0; i < grid.stepCount; i += 4) {
     ctx.fillStyle = (i / 4) % 2 === 0 ? BEAT_BG_EVEN : BEAT_BG_ODD;
     ctx.fillRect(i * cellW, 0, cellW * Math.min(4, grid.stepCount - i), height);
+  }
+
+  // Measure boundaries (loop longer than one cycle, `.slow(n)`): a marked
+  // vertical line every stepCount / cycles columns.
+  const cycles = grid.cycles ?? 1;
+  if (cycles > 1 && grid.stepCount % cycles === 0) {
+    const perMeasure = grid.stepCount / cycles;
+    ctx.fillStyle = MEASURE_LINE;
+    for (let m = 1; m < cycles; m++) {
+      ctx.fillRect(m * perMeasure * cellW - dpr / 2, 0, dpr, height);
+    }
   }
 
   // Cells.

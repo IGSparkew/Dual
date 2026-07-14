@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Merge, Split, Plus } from 'lucide-react';
+import { CYCLE_CHOICES } from '@modules/shared/loop-length';
 import type { BankInfo, DrumGrid, GridClip } from '../drum-grid';
 import styles from '../DrumGridModule.module.css';
 
@@ -14,13 +15,17 @@ interface DrumGridToolbarProps {
   /** Available banks; `missing` lists the current grid's uncovered instruments. */
   bankChoices: BankInfo[];
   onSelectClip: (name: string) => void;
+  /** Steps PER MEASURE picked by the user — the module scales by `cycles`. */
   onStepCount: (n: number) => void;
+  /** Loop length in cycles (« Mesures ») picked by the user. */
+  onCycles: (n: number) => void;
   onToggleForm: () => void;
   onAddRow: (sample: string) => void;
   onSetBank: (bank: string) => void;
 }
 
-/** Clip picker, bank picker, step count, merged/split toggle, add-row input. */
+/** Clip picker, bank picker, measures, step count, merged/split toggle,
+ *  add-row input. */
 export function DrumGridToolbar({
   clips,
   active,
@@ -31,10 +36,18 @@ export function DrumGridToolbar({
   bankChoices,
   onSelectClip,
   onStepCount,
+  onCycles,
   onToggleForm,
   onAddRow,
   onSetBank,
 }: DrumGridToolbarProps) {
+  // Loop length: an unmanaged `.slow` (non-literal, decimal, duplicated)
+  // disables the « Mesures » select — same hands-off policy as "complexe".
+  const unmanagedSlow = grid !== null && grid.cycles === null;
+  const cycles = grid?.cycles ?? 1;
+  // « Pas » shows steps per measure; a non-integer quotient (hand-written
+  // counts) keeps its exact value as an ad hoc option.
+  const perMeasure = grid ? grid.stepCount / cycles : 16;
   // Starts (and resets) empty: a datalist filters by the current value, so a
   // pre-filled "bd" would hide every other suggestion.
   const [sample, setSample] = useState('');
@@ -96,18 +109,46 @@ export function DrumGridToolbar({
       </div>
 
       <div className={styles.toolbarGroup}>
+        <span className={styles.toolbarLabel}>Mesures</span>
+        <select
+          className={styles.select}
+          value={unmanagedSlow ? '' : cycles}
+          disabled={!grid || unmanagedSlow}
+          onChange={(e) => onCycles(Number(e.target.value))}
+          title="Longueur de boucle en mesures (cycles) — .slow(n)"
+        >
+          {/* Unmanaged `.slow` — nothing selectable, the Code Editor owns it. */}
+          {unmanagedSlow && <option value="">—</option>}
+          {CYCLE_CHOICES.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+          {/* Hand-written cycle count outside the choices — keep it selectable. */}
+          {!unmanagedSlow && grid && !CYCLE_CHOICES.includes(cycles) && (
+            <option value={cycles}>{cycles}</option>
+          )}
+        </select>
+      </div>
+
+      <div className={styles.toolbarGroup}>
         <span className={styles.toolbarLabel}>Pas</span>
         <select
           className={styles.select}
-          value={grid?.stepCount ?? 16}
+          value={grid ? perMeasure : 16}
           disabled={!grid}
           onChange={(e) => onStepCount(Number(e.target.value))}
+          title="Pas par mesure"
         >
           {stepChoices.map((n) => (
             <option key={n} value={n}>
               {n}
             </option>
           ))}
+          {/* Hand-written step count outside the choices — keep it selectable. */}
+          {grid && !stepChoices.includes(perMeasure) && (
+            <option value={perMeasure}>{perMeasure}</option>
+          )}
         </select>
       </div>
 

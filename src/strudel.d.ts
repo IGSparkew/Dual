@@ -10,6 +10,15 @@ declare module '@strudel/mini';
 declare module '@strudel/tonal';
 declare module '@strudel/webaudio';
 declare module '@strudel/transpiler';
+declare module '@strudel/soundfonts' {
+  /** Registers all General-MIDI `gm_*` sounds (gm_piano, gm_synth_bass_1, …)
+   *  into superdough's soundMap. Synchronous: fonts are fetched lazily on first
+   *  play from the URL set by setSoundfontUrl (default felixroos.github.io). */
+  export function registerSoundfonts(): void;
+  /** Base URL fonts are fetched from as `${url}/${name}.js` (no trailing slash).
+   *  Point at the vendored local folder to keep runtime offline. */
+  export function setSoundfontUrl(url: string): void;
+}
 declare module 'superdough';
 
 declare module 'escodegen' {

@@ -116,11 +116,9 @@ export function PianoRollModule({ api }: PanelProps) {
         const canvas = canvasRef.current;
         const view = viewRef.current;
         if (!canvas || !view.roll) return;
-        // A loop of n measures (`.slow(n)`) spans n cycles; an unmanaged
-        // `.slow` (cycles null) falls back to a single-cycle sweep.
+        // 4 beats = 1 cycle — same convention as the drum grid.
         const { status, position } = api.getTransport();
-        const cycles = view.roll.cycles ?? 1;
-        const playhead = status === 'playing' ? loopPhase(position, cycles) : null;
+        const playhead = status === 'playing' ? ((position / 4) % 1 + 1) % 1 : null;
         const surface = api.canvas.surface(canvas);
         if (surface) {
           drawRoll(surface, {

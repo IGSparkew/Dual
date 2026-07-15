@@ -37,10 +37,12 @@ export function App() {
 
   useEffect(() => {
     // strudelBridge only evaluates once the engine is ready (post first-gesture
-    // init) — loading the project earlier would set activeCode but silently
-    // drop the pattern evaluation (StrudelBridgeImpl.evaluate no-ops until init).
+    // init) — initializing earlier would set activeCode but silently drop the
+    // pattern evaluation (StrudelBridgeImpl.evaluate no-ops until init).
+    // Boots into a blank project by default; the last project (if any) is
+    // opened on demand via the "Open Last Project" menu entry instead.
     if (engineStatus === 'ready') {
-      void projectManager.loadLastProjectOnBoot();
+      projectManager.initBlankProject();
     }
   }, [engineStatus]);
 

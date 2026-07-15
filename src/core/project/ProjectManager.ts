@@ -10,5 +10,12 @@ export interface ProjectManager {
    *  close flow) must check this rather than assume success. */
   save(): Promise<boolean>;
   saveAs(): Promise<boolean>;
-  loadLastProjectOnBoot(): Promise<void>;
+  /** Resets to a fresh untitled empty project without touching the
+   *  remembered last-project path — used to boot the app into a blank
+   *  canvas by default (the last project is opened on demand instead, via
+   *  `openLastProject`). */
+  initBlankProject(): void;
+  /** Loads the remembered last project, if any, with the same dirty-confirm
+   *  gating and success/failure notifications as `openProject`. */
+  openLastProject(): Promise<void>;
 }

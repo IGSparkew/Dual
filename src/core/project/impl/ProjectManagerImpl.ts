@@ -94,18 +94,31 @@ export class ProjectManagerImpl implements ProjectManager {
     }
   }
 
-  async loadLastProjectOnBoot(): Promise<void> {
+  initBlankProject(): void {
+    syncController.notify('ui_action', EMPTY_PROJECT_CODE);
+    this._markSynced(EMPTY_PROJECT_CODE);
+  }
+
+  async openLastProject(): Promise<void> {
     const desktop = window.dualDesktop;
     if (!desktop) return;
 
+    const store = useStore.getState();
+    if (store.isDirty && !window.confirm('Discard unsaved changes and open the last project?')) {
+      return;
+    }
+
     const project = await desktop.getLastProject();
-    if (!project) return;
+    if (!project) {
+      store.addNotification('No last project found', 'info');
+      return;
+    }
 
     syncController.notify('ui_action', project.code);
-    const store = useStore.getState();
     store.setCurrentProjectPath(project.path);
     store.setProjectName(project.name);
     this._markSynced(project.code);
+    store.addNotification(`Opened "${project.name}"`, 'success');
   }
 
   private _markSynced(code: string): void {

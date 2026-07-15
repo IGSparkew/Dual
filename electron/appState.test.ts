@@ -1,7 +1,7 @@
 /**
  * Tests for `electron/appState.ts` — `getLastProjectPath`/`setLastProjectPath`,
- * the tiny `app-state.json` sidecar backing the "reopen last project on boot"
- * flow (`ProjectManagerImpl.loadLastProjectOnBoot`).
+ * the tiny `app-state.json` sidecar backing the "open last project on demand"
+ * flow (`ProjectManagerImpl.openLastProject`).
  *
  * Approach: a REAL temp directory (`os.tmpdir()`), not a mocked `fs` — the
  * module is a thin, synchronous fs wrapper with no Electron/IPC surface of its

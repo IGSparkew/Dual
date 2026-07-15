@@ -113,6 +113,7 @@ export function useMenuBridge(): void {
     const unsubscribeMenuActions = [
       desktop.onMenuAction('new-project', () => void projectManager.newProject()),
       desktop.onMenuAction('open-project', () => void projectManager.openProject()),
+      desktop.onMenuAction('open-last-project', () => void projectManager.openLastProject()),
       desktop.onMenuAction('save-project', () => void handleMenuSave()),
       desktop.onMenuAction('save-as-project', () => void projectManager.saveAs()),
       desktop.onMenuAction('export-wav', () => void handleMenuExportWav()),

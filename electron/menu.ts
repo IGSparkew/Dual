@@ -19,6 +19,10 @@ export function buildMenu(win: BrowserWindow): void {
         click: () => win.webContents.send('menu:open-project'),
       },
       {
+        label: 'Open Last Project',
+        click: () => win.webContents.send('menu:open-last-project'),
+      },
+      {
         label: 'Save',
         accelerator: 'CmdOrCtrl+S',
         click: () => win.webContents.send('menu:save-project'),

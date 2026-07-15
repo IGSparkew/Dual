@@ -217,24 +217,48 @@ describe('ProjectManagerImpl', () => {
     });
   });
 
-  describe('loadLastProjectOnBoot', () => {
-    it('does nothing when there is no remembered last project', async () => {
-      (desktop.getLastProject as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+  describe('initBlankProject', () => {
+    it('resets to an untitled empty project without touching the remembered last project', () => {
+      useStore.setState({ isDirty: true, currentProjectPath: '/old.strudel', projectName: 'Old' });
 
-      await manager.loadLastProjectOnBoot();
+      manager.initBlankProject();
 
-      expect(notifyMock).not.toHaveBeenCalled();
+      expect(notifyMock).toHaveBeenCalledWith('ui_action', expect.any(String));
+      expect(useStore.getState().isDirty).toBe(false);
+      expect(desktop.setLastProject).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('openLastProject', () => {
+    it('does nothing when dirty and the user cancels', async () => {
+      useStore.setState({ isDirty: true });
+      confirmMock.mockReturnValue(false);
+
+      await manager.openLastProject();
+
+      expect(desktop.getLastProject).not.toHaveBeenCalled();
     });
 
-    it('applies the remembered project silently (no user-facing notification)', async () => {
+    it('notifies when there is no remembered last project', async () => {
+      (desktop.getLastProject as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await manager.openLastProject();
+
+      expect(notifyMock).not.toHaveBeenCalled();
+      expect(useStore.getState().notifications).toHaveLength(1);
+      expect(useStore.getState().notifications[0].type).toBe('info');
+    });
+
+    it('applies the remembered project and notifies success', async () => {
       const project: ProjectFile = { path: '/last.strudel', name: 'Last', code: 's("bd")' };
       (desktop.getLastProject as ReturnType<typeof vi.fn>).mockResolvedValue(project);
 
-      await manager.loadLastProjectOnBoot();
+      await manager.openLastProject();
 
       expect(notifyMock).toHaveBeenCalledWith('ui_action', 's("bd")');
       expect(useStore.getState().currentProjectPath).toBe('/last.strudel');
-      expect(useStore.getState().notifications).toHaveLength(0);
+      expect(useStore.getState().notifications).toHaveLength(1);
+      expect(useStore.getState().notifications[0].type).toBe('success');
     });
   });
 });

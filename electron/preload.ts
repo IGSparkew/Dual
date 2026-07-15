@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 const MENU_ACTIONS = [
   'new-project',
   'open-project',
+  'open-last-project',
   'save-project',
   'save-as-project',
   'export-wav',

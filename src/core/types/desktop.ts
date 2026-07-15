@@ -21,6 +21,7 @@ export interface ProjectFile {
 export type MenuAction =
   | 'new-project'
   | 'open-project'
+  | 'open-last-project'
   | 'save-project'
   | 'save-as-project'
   | 'export-wav'

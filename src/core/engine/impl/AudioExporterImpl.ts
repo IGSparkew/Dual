@@ -2,12 +2,10 @@ import type { AudioExporter } from '../AudioExporter';
 import { useStore } from '@core/state/store';
 import { strudelBridge } from './StrudelBridgeImpl';
 import { scheduler } from './SchedulerImpl';
+import { renderPatternOffline } from './RenderPatternOfflineImpl';
 
-// Top-level dynamic import mirrors StrudelBridgeImpl's convention for @strudel/*.
-const { renderPatternAudio } = await import('@strudel/webaudio');
-
-// CD-quality default; renderPatternAudio requires a concrete sampleRate to size
-// the OfflineAudioContext buffer.
+// CD-quality default; the offline renderer requires a concrete sampleRate to
+// size the OfflineAudioContext buffer.
 const SAMPLE_RATE = 44100;
 // Passed through to superdough's initAudio. It must be a concrete number:
 // setMaxPolyphony(undefined) resolves to NaN (parseInt(undefined) is NaN and the
@@ -41,24 +39,26 @@ export class AudioExporterImpl implements AudioExporter {
     const downloadName = sanitizeFilename(filenameHint);
 
     try {
-      await renderPatternAudio(
-        pattern,
-        cps,
-        0,
-        cycles,
-        SAMPLE_RATE,
-        MAX_POLYPHONY,
-        MULTI_CHANNEL_ORBITS,
-        downloadName,
+      const rendered = await renderPatternOffline.render(
+        pattern, cps, 0, cycles, SAMPLE_RATE, MAX_POLYPHONY, MULTI_CHANNEL_ORBITS,
       );
+      const blob = renderPatternOffline.toWavBlob(rendered);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${downloadName}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       store.addNotification(`Exported "${downloadName}.wav"`, 'success');
     } catch (error) {
       store.addNotification(`Export failed: ${String(error)}`, 'error');
     } finally {
-      // renderPatternAudio closes the live AudioContext and leaves the global
+      // renderPatternOffline closes the live AudioContext and leaves the global
       // one null; without this, live playback stays silently broken. Runs even
       // when the render threw.
-      strudelBridge.refreshAudioContext();
+      await strudelBridge.refreshAudioContext();
     }
   }
 }

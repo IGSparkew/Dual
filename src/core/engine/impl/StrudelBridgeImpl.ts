@@ -2,7 +2,7 @@ import type { Hap } from "@core/types/hap";
 import type { StrudelBridge } from "../StrudelBridge";
 import { useStore } from "@core/state/store";
 
-const { initAudioOnFirstClick, getAudioContext, registerSynthSounds, webaudioOutput } =
+const { initAudioOnFirstClick, initAudio, getAudioContext, registerSynthSounds, webaudioOutput } =
   await import('@strudel/webaudio');
 const { repl, evalScope } = await import('@strudel/core');
 const { transpiler } = await import('@strudel/transpiler');
@@ -117,13 +117,18 @@ export class StrudelBridgeImpl implements StrudelBridge {
     return this.currentPattern;
   }
 
-  refreshAudioContext(): void {
+  async refreshAudioContext(): Promise<void> {
     // `renderPatternAudio` closes the global AudioContext before swapping in an
     // OfflineAudioContext, then resets it to null when done. Our repl captured
     // `getTime: () => this.audioContext.currentTime` against the context stored
     // here, so after an export that reference points at a closed context and
     // live playback silently breaks. Re-read the current live context to heal it.
     this.audioContext = getAudioContext();
+    // getAudioContext() lazily creates a brand new plain AudioContext once the
+    // live one was closed — it never re-runs audioWorklet.addModule() on it.
+    // Without this, the next play() throws "AudioWorklet does not have a valid
+    // AudioWorkletGlobalScope" as soon as a hap needs a worklet-based node.
+    await initAudio();
   }
 
   dispose(): void {

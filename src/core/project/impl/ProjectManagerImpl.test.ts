@@ -34,6 +34,7 @@ function makeDesktop(overrides: Partial<DualDesktop> = {}): DualDesktop {
     saveProjectDialog: vi.fn(),
     writeFile: vi.fn(),
     getLastProject: vi.fn(),
+    readProjectFile: vi.fn(),
     setLastProject: vi.fn(),
     setDirty: vi.fn(),
     confirmSaved: vi.fn(),
@@ -259,6 +260,51 @@ describe('ProjectManagerImpl', () => {
       expect(useStore.getState().currentProjectPath).toBe('/last.strudel');
       expect(useStore.getState().notifications).toHaveLength(1);
       expect(useStore.getState().notifications[0].type).toBe('success');
+    });
+  });
+
+  describe('reloadCurrentProject', () => {
+    it('is a no-op when no project is currently open', async () => {
+      useStore.setState({ currentProjectPath: null });
+
+      await manager.reloadCurrentProject();
+
+      expect(desktop.readProjectFile).not.toHaveBeenCalled();
+      expect(notifyMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when dirty and the user cancels the discard confirm', async () => {
+      useStore.setState({ currentProjectPath: '/song.strudel', isDirty: true });
+      confirmMock.mockReturnValue(false);
+
+      await manager.reloadCurrentProject();
+
+      expect(desktop.readProjectFile).not.toHaveBeenCalled();
+    });
+
+    it('re-reads the current path and re-evaluates the fetched code (e.g. after a Git Pull)', async () => {
+      useStore.setState({ currentProjectPath: '/song.strudel', isDirty: false });
+      const project: ProjectFile = { path: '/song.strudel', name: 'song', code: 's("bd sd")' };
+      (desktop.readProjectFile as ReturnType<typeof vi.fn>).mockResolvedValue(project);
+
+      await manager.reloadCurrentProject();
+
+      expect(desktop.readProjectFile).toHaveBeenCalledWith('/song.strudel');
+      expect(notifyMock).toHaveBeenCalledWith('ui_action', 's("bd sd")');
+      expect(useStore.getState().isDirty).toBe(false);
+      expect(getLastSyncedCode()).toBe('s("bd sd")');
+      expect(useStore.getState().notifications).toHaveLength(1);
+      expect(useStore.getState().notifications[0].type).toBe('success');
+    });
+
+    it('does nothing when the file is missing/unreadable (readProjectFile resolves null)', async () => {
+      useStore.setState({ currentProjectPath: '/song.strudel', isDirty: false });
+      (desktop.readProjectFile as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await manager.reloadCurrentProject();
+
+      expect(notifyMock).not.toHaveBeenCalled();
+      expect(useStore.getState().notifications).toHaveLength(0);
     });
   });
 });

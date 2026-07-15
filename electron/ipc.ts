@@ -4,7 +4,7 @@ import path from 'node:path';
 import { getCoreRoot, getPortableRoot, getUserDataRoot } from './paths';
 import { USER_DIRS, type UserDir } from './userdata';
 import { getLastProjectPath, setLastProjectPath } from './appState';
-import { gitCommit, gitPush, setRemote } from './git';
+import { findRepoRoot, gitCommit, gitPull, gitPush, setRemote } from './git';
 
 interface ProjectFile {
   path: string;
@@ -96,6 +96,21 @@ export function registerIpcHandlers(win: BrowserWindow): void {
     }
   });
 
+  // Re-reads a project file already known to the renderer (e.g. after a Git
+  // Pull landed changes on disk outside the writeFile/syncController path) —
+  // unlike open-project-dialog, this doesn't prompt, it just re-reads `path`.
+  ipcMain.handle('dual:read-project-file', async (_event, filePath: unknown): Promise<ProjectFile | null> => {
+    if (typeof filePath !== 'string') {
+      throw new Error('dual:read-project-file expects a string path');
+    }
+    try {
+      const code = await fs.readFile(filePath, 'utf-8');
+      return { path: filePath, name: projectNameFromPath(filePath), code };
+    } catch {
+      return null;
+    }
+  });
+
   ipcMain.handle('dual:set-last-project', (_event, filePath: unknown) => {
     if (filePath !== null && typeof filePath !== 'string') {
       throw new Error('dual:set-last-project expects a string or null');
@@ -154,6 +169,35 @@ export function registerIpcHandlers(win: BrowserWindow): void {
         return await gitPush(dir);
       } catch (error) {
         return { pushed: false, message: String(error), error: true };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'dual:git-find-repo-root',
+    async (_event, projectPath: unknown): Promise<{ root: string | null }> => {
+      if (typeof projectPath !== 'string') {
+        throw new Error('dual:git-find-repo-root expects a string projectPath');
+      }
+      const dir = path.dirname(projectPath);
+      return { root: await findRepoRoot(dir) };
+    },
+  );
+
+  ipcMain.handle(
+    'dual:git-pull',
+    async (
+      _event,
+      projectPath: unknown,
+    ): Promise<{ pulled: boolean; message: string; error?: boolean }> => {
+      if (typeof projectPath !== 'string') {
+        throw new Error('dual:git-pull expects a string projectPath');
+      }
+      const dir = path.dirname(projectPath);
+      try {
+        return await gitPull(dir);
+      } catch (error) {
+        return { pulled: false, message: String(error), error: true };
       }
     },
   );

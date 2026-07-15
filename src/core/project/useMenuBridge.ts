@@ -69,6 +69,17 @@ export function useMenuBridge(): void {
       const projectPath = requireProjectPath();
       if (!projectPath) return;
 
+      const { root } = await desktop!.gitFindRepoRoot(projectPath);
+      if (root === null) {
+        const confirmed = window.confirm(
+          "No git repository found for this project. Initialize a new one in this project's folder?",
+        );
+        if (!confirmed) {
+          useStore.getState().addNotification('Commit cancelled', 'info');
+          return;
+        }
+      }
+
       const defaultMessage = `Save project: ${useStore.getState().projectName} (${new Date().toISOString().slice(0, 10)})`;
       const message = await requestPrompt('Commit message', defaultMessage);
       if (message === null) return; // user cancelled
@@ -110,6 +121,21 @@ export function useMenuBridge(): void {
       }
     }
 
+    async function handleMenuGitPull(): Promise<void> {
+      const projectPath = requireProjectPath();
+      if (!projectPath) return;
+
+      const result = await desktop!.gitPull(projectPath);
+      if (result.pulled) {
+        // Pull writes straight to disk, bypassing writeFile/syncController —
+        // reload so the editor doesn't go stale and overwrite it on the next
+        // Save/Commit. Handles its own success notification and dirty-guard.
+        await projectManager.reloadCurrentProject();
+      } else {
+        useStore.getState().addNotification(result.message, result.error ? 'error' : 'warning');
+      }
+    }
+
     const unsubscribeMenuActions = [
       desktop.onMenuAction('new-project', () => void projectManager.newProject()),
       desktop.onMenuAction('open-project', () => void projectManager.openProject()),
@@ -121,6 +147,7 @@ export function useMenuBridge(): void {
       desktop.onMenuAction('git-commit', () => void handleMenuGitCommit()),
       desktop.onMenuAction('git-set-remote', () => void handleMenuGitSetRemote()),
       desktop.onMenuAction('git-push', () => void handleMenuGitPush()),
+      desktop.onMenuAction('git-pull', () => void handleMenuGitPull()),
     ];
 
     return () => {

@@ -121,6 +121,26 @@ export class ProjectManagerImpl implements ProjectManager {
     store.addNotification(`Opened "${project.name}"`, 'success');
   }
 
+  async reloadCurrentProject(): Promise<void> {
+    const desktop = window.dualDesktop;
+    if (!desktop) return;
+
+    const store = useStore.getState();
+    const path = store.currentProjectPath;
+    if (!path) return;
+
+    if (store.isDirty && !window.confirm('Reload project from disk and discard unsaved changes?')) {
+      return;
+    }
+
+    const project = await desktop.readProjectFile(path);
+    if (!project) return;
+
+    syncController.notify('ui_action', project.code);
+    this._markSynced(project.code);
+    store.addNotification(`Reloaded "${project.name}"`, 'success');
+  }
+
   private _markSynced(code: string): void {
     lastSyncedCode = code;
     useStore.getState().setDirty(false);

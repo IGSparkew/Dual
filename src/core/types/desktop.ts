@@ -28,6 +28,7 @@ export type MenuAction =
   | 'copy-strudel-link'
   | 'git-commit'
   | 'git-push'
+  | 'git-pull'
   | 'git-set-remote';
 
 export interface DualDesktop {
@@ -39,6 +40,10 @@ export interface DualDesktop {
   saveProjectDialog(code: string): Promise<{ path: string; name: string } | null>;
   writeFile(path: string, code: string): Promise<void>;
   getLastProject(): Promise<ProjectFile | null>;
+  /** Re-reads `path` from disk without prompting — used to refresh the editor
+   *  after changes land outside `writeFile` (e.g. a Git Pull). Returns `null`
+   *  if the file is missing/unreadable. */
+  readProjectFile(path: string): Promise<ProjectFile | null>;
   setLastProject(path: string | null): Promise<void>;
   setDirty(dirty: boolean): Promise<void>;
   confirmSaved(saved: boolean): Promise<void>;
@@ -54,6 +59,13 @@ export interface DualDesktop {
    *  remote. `pushed` is false with an explanatory message when no remote is
    *  configured, or `error: true` on a real git failure. */
   gitPush(projectPath: string): Promise<{ pushed: boolean; message: string; error?: boolean }>;
+  /** Finds the git repo root containing the directory of `projectPath` (walks
+   *  up through parent folders), or `null` if it isn't inside any repo. */
+  gitFindRepoRoot(projectPath: string): Promise<{ root: string | null }>;
+  /** Pulls the repo rooted at the directory containing `projectPath` from its
+   *  remote. `pulled` is false with an explanatory message when no remote is
+   *  configured, or `error: true` on a real git failure. */
+  gitPull(projectPath: string): Promise<{ pulled: boolean; message: string; error?: boolean }>;
   /** Points the repo rooted at the directory containing `projectPath` at `url`
    *  (adds `origin` if missing, otherwise updates its URL). */
   gitSetRemote(projectPath: string, url: string): Promise<{ ok: boolean; message?: string }>;

@@ -18,4 +18,10 @@ export interface ProjectManager {
   /** Loads the remembered last project, if any, with the same dirty-confirm
    *  gating and success/failure notifications as `openProject`. */
   openLastProject(): Promise<void>;
+  /** Re-reads the current project's file from disk and applies it — used
+   *  after a Git Pull, whose changes land on disk without going through
+   *  `writeFile`/`syncController`, so the in-memory code would otherwise go
+   *  stale and get overwritten on the next Save/Commit. Same dirty-confirm
+   *  gating as `openProject`. No-op if no project is open. */
+  reloadCurrentProject(): Promise<void>;
 }

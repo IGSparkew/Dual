@@ -62,6 +62,10 @@ export function buildMenu(win: BrowserWindow): void {
             click: () => win.webContents.send('menu:git-set-remote'),
           },
           {
+            label: 'Pull from Remote',
+            click: () => win.webContents.send('menu:git-pull'),
+          },
+          {
             label: 'Push to Remote',
             click: () => win.webContents.send('menu:git-push'),
           },

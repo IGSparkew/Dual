@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import styles from './App.module.css';
 import { strudelBridge } from '@core/engine/impl/StrudelBridgeImpl';
 import { sampleLoader } from '@core/engine/impl/SampleLoaderImpl';
+import { projectManager } from '@core/project/impl/ProjectManagerImpl';
+import { useMenuBridge } from '@core/project/useMenuBridge';
 import { useStore } from '@core/state/store';
 import { LayoutManager } from '@layout/components/LayoutManager';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
+import { PromptDialog } from './shared/PromptDialog';
 
 // Register all built-in modules
 import '@modules/transport/index';
@@ -25,10 +28,23 @@ export function App() {
   const layouts = useLayoutRegistry();
   const [activeLayoutId, setActiveLayoutId] = useState('production');
 
+  useMenuBridge();
+
   useEffect(() => {
     strudelBridge.init(); // audio on first gesture
     void sampleLoader.loadDefaults(); // register the maps right away (no audio context needed)
   }, []);
+
+  useEffect(() => {
+    // strudelBridge only evaluates once the engine is ready (post first-gesture
+    // init) — initializing earlier would set activeCode but silently drop the
+    // pattern evaluation (StrudelBridgeImpl.evaluate no-ops until init).
+    // Boots into a blank project by default; the last project (if any) is
+    // opened on demand via the "Open Last Project" menu entry instead.
+    if (engineStatus === 'ready') {
+      projectManager.initBlankProject();
+    }
+  }, [engineStatus]);
 
   if (engineStatus !== 'ready') {
     return (
@@ -62,6 +78,7 @@ export function App() {
         <LayoutManager layoutId={activeLayoutId} />
       </main>
       <Notifications />
+      <PromptDialog />
     </div>
   );
 }

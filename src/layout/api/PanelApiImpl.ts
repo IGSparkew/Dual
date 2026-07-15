@@ -20,12 +20,15 @@ const codeApi: PanelCodeApi = {
   outputSource: (code) => codeRegion.outputSource(code),
   dollarExprs: (code) => codeRegion.dollarExprs(code),
   callArgs: (code, name) => codeRegion.callArgs(code, name),
+  leadingCallArgs: (code, calleeName) => codeRegion.leadingCallArgs(code, calleeName),
   chainCalls: (code, name) => codeRegion.chainCalls(code, name),
   validateGraph: (decls) => codeRegion.validateGraph(decls),
   // Transforms
   insertDecl: (code, declText) => codeRegion.insertDecl(code, declText),
   removeDecl: (code, name) => codeRegion.removeDecl(code, name),
   setInit: (code, name, source) => codeRegion.setInit(code, name, source),
+  setLeadingCall: (code, calleeName, args) =>
+    codeRegion.setLeadingCall(code, calleeName, args),
   setOutput: (code, text) => codeRegion.setOutput(code, text),
   removeOutput: (code) => codeRegion.removeOutput(code),
   // Raw

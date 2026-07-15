@@ -6,5 +6,5 @@
   "description": "Playback controls: play, pause, stop, BPM",
   "defaultSlot": "bottom",
   "minSize": { "width": 300, "height": 60 },
-  "capabilities": ["state:read", "state:write"]
+  "capabilities": ["state:read", "state:write", "code:read", "code:write"]
 }

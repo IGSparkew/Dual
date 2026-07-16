@@ -21,7 +21,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { samplesMock } = vi.hoisted(() => ({ samplesMock: vi.fn().mockResolvedValue(undefined) }));
 
 vi.mock('superdough', () => ({
-  soundMap: { get: () => ({}), listen: () => () => {} },
+  soundMap: { get: () => ({}), listen: () => () => {}, setKey: () => {} },
 }));
 
 vi.mock('@strudel/webaudio', () => ({
@@ -38,6 +38,7 @@ function makeDesktop(overrides: Partial<DualDesktop> = {}): DualDesktop {
     listUserDir: vi.fn().mockResolvedValue([]),
     getPackStates: vi.fn().mockResolvedValue([]),
     installPack: vi.fn(),
+    uninstallPack: vi.fn(),
     onPackProgress: vi.fn(),
     openProjectDialog: vi.fn(),
     saveProjectDialog: vi.fn(),

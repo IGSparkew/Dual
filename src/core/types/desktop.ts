@@ -58,6 +58,10 @@ export interface DualDesktop {
    *  userdata/samples/<id>/. Rejects if already installed/installing or if
    *  disk space is insufficient — check the resolved state via getPackStates(). */
   installPack(packId: string): Promise<void>;
+  /** Removes userdata/samples/<id>/ entirely. Rejects if the pack is currently
+   *  installing or isn't installed. Call sampleLoader.unloadPack(id) afterward
+   *  to drop its sounds from the running session's sound map. */
+  uninstallPack(packId: string): Promise<void>;
   /** Subscribes to install progress for any pack; returns an unsubscribe function. */
   onPackProgress(callback: (progress: PackProgress) => void): () => void;
 

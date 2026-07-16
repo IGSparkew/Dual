@@ -25,6 +25,8 @@ interface SoundMapStore {
   get(): Record<string, unknown>;
   /** nanostores listen: fires on each setKey/set, returns an unbind function. */
   listen(cb: (sounds: Record<string, unknown>) => void): () => void;
+  /** nanostores map: setKey(key, undefined) deletes the key entirely. */
+  setKey(key: string, value: unknown): void;
 }
 
 const soundStore = soundMap as SoundMapStore;
@@ -67,6 +69,10 @@ interface RemotePackManifestEntry {
 export class SampleLoaderImpl implements SampleLoader {
   private cache = new Map<string, AudioBuffer>();
   private defaultsLoaded = false;
+  // Sound-map keys registered by each installed tier-2 pack, captured at load
+  // time (see loadInstalledPacks) so unloadPack() knows exactly what to remove
+  // without guessing at superdough's key-normalization rules.
+  private packSoundKeys = new Map<string, string[]>();
 
   async loadDefaults(): Promise<void> {
     if (this.defaultsLoaded) return;
@@ -96,10 +102,23 @@ export class SampleLoaderImpl implements SampleLoader {
     await this.loadInstalledPacks(desktop, samples, id);
   }
 
+  unloadPack(id: string): void {
+    const keys = this.packSoundKeys.get(id);
+    if (!keys) return; // never loaded this session — nothing to remove
+    for (const key of keys) {
+      soundStore.setKey(key, undefined); // nanostores map: deletes the key entirely
+    }
+    this.packSoundKeys.delete(id);
+  }
+
   // Reads packs-manifest.json (bundled) to know each pack's map(s)/base, and
   // getPackStates() to know which are installed. Registers every installed
   // pack's map(s) from userdata/samples/<id>/. Pass `onlyId` to load a single
   // freshly-installed pack (loadInstalledPack). Idempotent: samples() merges.
+  //
+  // Packs are loaded sequentially (not Promise.all'd against each other) so
+  // the before/after sound-map snapshot used to populate packSoundKeys can't
+  // pick up keys registered by a different pack loading concurrently.
   private async loadInstalledPacks(
     desktop: DualDesktop,
     samples: (map: string, base?: string) => Promise<void>,
@@ -115,19 +134,20 @@ export class SampleLoaderImpl implements SampleLoader {
       const targets = states.filter(
         (s) => s.status === 'installed' && (onlyId === undefined || s.id === onlyId),
       );
-      await Promise.all(
-        targets.flatMap((state) => {
-          const entry = byId.get(state.id);
-          if (!entry) return []; // installed on disk but absent from manifest — skip
-          // dual://user/samples/<id>/<base> and .../<map> — same shape as loadDefaults.
-          const packRoot = `${root}${state.id}/`;
-          const base = packRoot + entry.base;
-          // Shared-folder packs list several maps against one base: one samples()
-          // call per map, same base each time.
-          const mapNames = entry.maps ?? (entry.map ? [entry.map] : []);
-          return mapNames.map((map) => samples(packRoot + map, base));
-        }),
-      );
+      for (const state of targets) {
+        const entry = byId.get(state.id);
+        if (!entry) continue; // installed on disk but absent from manifest — skip
+        // dual://user/samples/<id>/<base> and .../<map> — same shape as loadDefaults.
+        const packRoot = `${root}${state.id}/`;
+        const base = packRoot + entry.base;
+        // Shared-folder packs list several maps against one base: one samples()
+        // call per map, same base each time.
+        const mapNames = entry.maps ?? (entry.map ? [entry.map] : []);
+        const before = new Set(Object.keys(soundStore.get()));
+        await Promise.all(mapNames.map((map) => samples(packRoot + map, base)));
+        const added = Object.keys(soundStore.get()).filter((key) => !before.has(key));
+        this.packSoundKeys.set(state.id, added);
+      }
     } catch (error) {
       console.error('Failed to load installed sample packs:', error);
     }

@@ -13,6 +13,15 @@ export interface SampleLoader {
    * packs-manifest.json. Idempotent — samples() merges/overwrites map entries.
    */
   loadInstalledPack(id: string): Promise<void>;
+  /**
+   * Unregister a tier-2 pack's sounds from superdough's sound map — call right
+   * after window.dualDesktop.uninstallPack(id) resolves, so getSoundNames()
+   * (and onSoundsChanged() subscribers) stop listing sounds whose files no
+   * longer exist on disk. No-op if the pack was never loaded this session
+   * (e.g. the app was just started and the pack was uninstalled before any
+   * module queried its sounds).
+   */
+  unloadPack(id: string): void;
   load(url: string): Promise<AudioBuffer>;
   loadFromFile(file: File): Promise<AudioBuffer>;
   /** Register a file as a named Strudel sample. Returns the name to use in s("name"). */

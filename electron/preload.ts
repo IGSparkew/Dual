@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('dualDesktop', {
   listUserDir: (subdir: string) => ipcRenderer.invoke('dual:list-user-dir', subdir),
   getPackStates: () => ipcRenderer.invoke('dual:get-pack-states'),
   installPack: (packId: string) => ipcRenderer.invoke('dual:install-pack', packId),
+  uninstallPack: (packId: string) => ipcRenderer.invoke('dual:uninstall-pack', packId),
   onPackProgress: (callback: (p: PackProgress) => void) => {
     const listener = (_e: unknown, p: PackProgress) => callback(p);
     ipcRenderer.on('pack:progress', listener);

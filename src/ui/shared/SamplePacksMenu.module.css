@@ -73,6 +73,21 @@
   color: var(--accent);
 }
 
+.uninstallBtn {
+  padding: 3px 10px;
+  font-size: 11px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.uninstallBtn:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
 .progress {
   color: var(--accent);
   font-variant-numeric: tabular-nums;

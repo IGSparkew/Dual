@@ -91,6 +91,16 @@ function makeResponse(statusCode: number, headers: Record<string, string> = {}) 
   };
 }
 
+function driveSuccessfulDownload(
+  captured: ReturnType<typeof makeControllableRequest>,
+  content: Buffer,
+): void {
+  const response = makeResponse(200, { 'content-length': String(content.length) });
+  captured.emitReqEvent('response', response);
+  response.emit('data', content);
+  response.emit('end');
+}
+
 /** A Writable that just drains everything written to it — stands in for
  *  `unzipper.Extract()`'s destination stream without touching real zip data. */
 function makeDrainWritable() {
@@ -217,16 +227,6 @@ describe('electron/packs.ts', () => {
   });
 
   describe('installPack', () => {
-    function driveSuccessfulDownload(
-      captured: ReturnType<typeof makeControllableRequest>,
-      content: Buffer,
-    ): void {
-      const response = makeResponse(200, { 'content-length': String(content.length) });
-      captured.emitReqEvent('response', response);
-      response.emit('data', content);
-      response.emit('end');
-    }
-
     it('downloads, verifies, extracts and marks a new pack installed end-to-end', async () => {
       const content = Buffer.from('fake zip bytes for pack-a');
       writeManifest([
@@ -524,6 +524,62 @@ describe('electron/packs.ts', () => {
 
       const errorEvent = progress.find((p) => p.phase === 'error');
       expect(errorEvent?.message).toMatch(/checksum mismatch/i);
+    });
+  });
+
+  describe('uninstallPack', () => {
+    it('removes an installed pack\'s directory entirely', async () => {
+      writeManifest([
+        { id: 'pack-a', version: 'v1', url: 'https://x/a.zip', sha256: 'x', sizeBytes: 10, map: 'a.json', base: 'A/' },
+      ]);
+      fs.mkdirSync(packDestDir('pack-a'), { recursive: true });
+      fs.writeFileSync(path.join(packDestDir('pack-a'), '.pack-version'), 'v1', 'utf-8');
+      fs.writeFileSync(path.join(packDestDir('pack-a'), 'some-sample.wav'), 'fake audio', 'utf-8');
+      const { uninstallPack, getPackStates } = await import('../../electron/packs');
+
+      await uninstallPack('pack-a');
+
+      expect(fs.existsSync(packDestDir('pack-a'))).toBe(false);
+      expect(await getPackStates()).toEqual([{ id: 'pack-a', status: 'available', sizeBytes: 10 }]);
+    });
+
+    it('rejects when the pack is not installed', async () => {
+      writeManifest([
+        { id: 'pack-a', version: 'v1', url: 'https://x/a.zip', sha256: 'x', sizeBytes: 10, map: 'a.json', base: 'A/' },
+      ]);
+      const { uninstallPack } = await import('../../electron/packs');
+
+      await expect(uninstallPack('pack-a')).rejects.toThrow(/not installed/i);
+    });
+
+    it('rejects while the pack is currently installing (does not touch its files)', async () => {
+      const content = Buffer.from('slow download');
+      writeManifest([
+        {
+          id: 'pack-a',
+          version: 'v1',
+          url: 'https://x/a.zip',
+          sha256: sha256Hex(content),
+          sizeBytes: content.length,
+          map: 'a.json',
+          base: 'A/',
+        },
+      ]);
+      const { installPack, uninstallPack } = await import('../../electron/packs');
+
+      let captured: ReturnType<typeof makeControllableRequest>;
+      netRequestMock.mockImplementation(() => {
+        captured = makeControllableRequest();
+        return captured.request;
+      });
+
+      const installPromise = installPack('pack-a', () => {});
+      await vi.waitFor(() => expect(netRequestMock).toHaveBeenCalled());
+
+      await expect(uninstallPack('pack-a')).rejects.toThrow(/currently installing/i);
+
+      driveSuccessfulDownload(captured!, content);
+      await expect(installPromise).resolves.toBeUndefined();
     });
   });
 });

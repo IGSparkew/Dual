@@ -68,14 +68,23 @@ export function SamplePacksMenu() {
     [desktop, refresh],
   );
 
-  if (!desktop) return null;
-
-  // Also show packs already 'installing' (e.g. an install started before this
-  // component mounted, or survived a window reload) even before the first
-  // progress event for them arrives — otherwise they'd be invisible until then.
-  const availablePacks = packs.filter(
-    (p) => p.status === 'available' || p.status === 'installing' || progressByPack[p.id],
+  const uninstall = useCallback(
+    async (packId: string) => {
+      try {
+        await desktop!.uninstallPack(packId);
+        sampleLoader.unloadPack(packId);
+      } catch (error) {
+        useStore
+          .getState()
+          .addNotification(`Échec de la désinstallation de "${packId}": ${String(error)}`, 'error');
+      } finally {
+        await refresh();
+      }
+    },
+    [desktop, refresh],
   );
+
+  if (!desktop) return null;
 
   return (
     <div className={styles.container}>
@@ -84,8 +93,8 @@ export function SamplePacksMenu() {
       </button>
       {open && (
         <div className={styles.panel}>
-          {availablePacks.length === 0 && <p className={styles.empty}>Tous les packs sont installés</p>}
-          {availablePacks.map((pack) => {
+          {packs.length === 0 && <p className={styles.empty}>Aucun pack disponible</p>}
+          {packs.map((pack) => {
             const progress = progressByPack[pack.id];
             return (
               <div key={pack.id} className={styles.row}>
@@ -95,6 +104,10 @@ export function SamplePacksMenu() {
                   <span className={styles.progress}>{formatProgress(progress)}</span>
                 ) : pack.status === 'installing' ? (
                   <span className={styles.progress}>Installation en cours…</span>
+                ) : pack.status === 'installed' ? (
+                  <button className={styles.uninstallBtn} onClick={() => void uninstall(pack.id)}>
+                    Désinstaller
+                  </button>
                 ) : (
                   <button className={styles.installBtn} onClick={() => void install(pack.id)}>
                     Installer

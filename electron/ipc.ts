@@ -5,7 +5,7 @@ import { getCoreRoot, getPortableRoot, getUserDataRoot } from './paths';
 import { USER_DIRS, type UserDir } from './userdata';
 import { getLastProjectPath, setLastProjectPath } from './appState';
 import { findRepoRoot, gitCommit, gitPull, gitPush, setRemote } from './git';
-import { getPackStates, installPack } from './packs';
+import { getPackStates, installPack, uninstallPack } from './packs';
 
 interface ProjectFile {
   path: string;
@@ -45,6 +45,13 @@ export function registerIpcHandlers(win: BrowserWindow): void {
     await installPack(packId, (progress) => {
       win.webContents.send('pack:progress', progress);
     });
+  });
+
+  ipcMain.handle('dual:uninstall-pack', async (_event, packId: unknown): Promise<void> => {
+    if (typeof packId !== 'string') {
+      throw new Error('dual:uninstall-pack expects a string packId');
+    }
+    await uninstallPack(packId);
   });
 
   // File names (not paths) directly under userdata/<subdir>.

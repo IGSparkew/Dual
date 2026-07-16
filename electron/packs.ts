@@ -253,3 +253,18 @@ export async function installPack(
     installing.delete(packId);
   }
 }
+
+/** Removes userdata/samples/<packId>/ entirely. Rejects if the pack is
+ *  currently installing or isn't installed (no `.pack-version` on disk) —
+ *  the renderer should also call sampleLoader.unloadPack(id) afterward to
+ *  drop its sounds from the running session's sound map. */
+export async function uninstallPack(packId: string): Promise<void> {
+  if (installing.has(packId)) {
+    throw new Error(`Pack "${packId}" is currently installing — wait for it to finish.`);
+  }
+  const version = await installedVersion(packId);
+  if (!version) {
+    throw new Error(`Pack "${packId}" is not installed.`);
+  }
+  await fs.rm(packDir(packId), { recursive: true, force: true });
+}

@@ -338,7 +338,7 @@ Le code est évalué via `@strudel/transpiler`. Les patterns retournent des **ha
 4. 🚧 **Phase 4 (sem. 15–18)** — Effets & Presets : FX Rack livré (`modules/effects`, catalogue 13 unités, chaînes, duck sidechain par orbit) ; **presets JSON** et **enveloppes** restent à faire
 5. ⬜ **Phase 5 (sem. 19–22)** — Automations : `modules/automation` n'est encore qu'un stub (`.gitkeep`) — éditeur d'automation, automation clip/globale, dessin libre → pattern à faire
 6. ⬜ **Phase 6 (sem. 23–27)** — Samples & Projet : `modules/browser` n'est encore qu'un stub (`.gitkeep`) — le moteur est prêt (samples dough-samples vendorés hors-ligne, `SampleLoader.getSoundNames()`/banques exposées, voir [[local-samples]] et [[sound-map-banks]]) mais l'UI browser/import/chopper/preview reste à construire
-7. 🚧 **Phase 7 (sem. 28–32)** — Modules utilisateurs : socle Electron « Dual » livré (chemins, `userdata/`, protocole `dual://`, `extraResources`, voir [[electron-desktop]]) ; loader dynamique de modules user, sandbox, SDK docs et marketplace restent à faire
+7. 🚧 **Phase 7 (sem. 28–32)** — Modules utilisateurs : socle Electron « Dual » livré (chemins, `userdata/`, protocole `dual://`, `extraResources`, voir [[electron-desktop]]) ; loader dynamique de modules user, sandbox et SDK docs restent à faire
 
 **Hors roadmap initiale, livré en parallèle** : desktop Electron (app **Dual**), infra de tests vitest (109 tests sur le FX Rack + suite globale, voir [[sound-map-banks]] pour le gotcha Node 25).
 

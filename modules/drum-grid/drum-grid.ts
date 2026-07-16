@@ -65,12 +65,13 @@ export const DRUM_SAMPLES = [
 ];
 
 /** Drum machine banks bundled by the tidal-drum-machines pack (see
- *  SampleLoaderImpl). Mirrors the `<Machine>_<sample>` prefixes of the vendored
- *  tidal-drum-machines.json — applied to a clip via `.bank("...")`. */
+ *  SampleLoaderImpl), plus `Jazz` (bundled tier-1 split of Dirt-Samples/jazz/,
+ *  see jazz-bank.json). Mirrors the `<Machine>_<sample>` prefixes of each
+ *  pack's json — applied to a clip via `.bank("...")`. */
 export const DRUM_BANKS = [
   'AJKPercusyn', 'AkaiLinn', 'AkaiMPC60', 'AkaiXR10', 'AlesisHR16', 'AlesisSR16',
   'BossDR110', 'BossDR220', 'BossDR55', 'BossDR550', 'CasioRZ1', 'CasioSK1',
-  'CasioVL1', 'DoepferMS404', 'EmuDrumulator', 'EmuModular', 'EmuSP12',
+  'CasioVL1', 'DoepferMS404', 'EmuDrumulator', 'EmuModular', 'EmuSP12', 'Jazz',
   'KorgDDM110', 'KorgKPR77', 'KorgKR55', 'KorgKRZ', 'KorgM1', 'KorgMinipops',
   'KorgPoly800', 'KorgT3', 'Linn9000', 'LinnDrum', 'LinnLM1', 'LinnLM2',
   'MFB512', 'MoogConcertMateMG1', 'MPC1000', 'OberheimDMX', 'RhodesPolaris',

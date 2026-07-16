@@ -1,0 +1,10 @@
+{
+  "jazz_bd": ["jazz/000_BD.wav"],
+  "jazz_cb": ["jazz/001_CB.wav"],
+  "jazz_perc": ["jazz/002_FX.wav"],
+  "jazz_hh": ["jazz/003_HH.wav"],
+  "jazz_oh": ["jazz/004_OH.wav"],
+  "jazz_rim": ["jazz/005_P1.wav"],
+  "jazz_cr": ["jazz/006_P2.wav"],
+  "jazz_sd": ["jazz/007_SN.wav"]
+}

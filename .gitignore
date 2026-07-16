@@ -7,5 +7,5 @@ userdata/
 .env.local
 *.local
 
-# sample archives produced by `npm run samples:pack` / consumed by `samples:unpack`
-/samples-*.tgz
+# zips produced by `npm run package:remote-packs` for the dual-samples GitHub releases
+release-packs/

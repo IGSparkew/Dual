@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "vcsl-aerophones",
+      "version": "v1",
+      "url": "https://github.com/IGSparkew/dual-samples/releases/download/v1/vcsl-aerophones-v1.zip",
+      "sha256": "4d46b3bace449fad0735b8890e83cfbcb27cce15ef23b68dfd00c94d17e8c068",
+      "sizeBytes": 616376725,
+      "map": "vcsl.json",
+      "base": "VCSL/"
+    },
+    {
+      "id": "vcsl-idiophones",
+      "version": "v1",
+      "url": "https://github.com/IGSparkew/dual-samples/releases/download/v1/vcsl-idiophones-v1.zip",
+      "sha256": "a1b71f8041c87ed7c2a4ea199de2f084d1716a2e0234645daf68b9a793b29062",
+      "sizeBytes": 388621721,
+      "map": "vcsl.json",
+      "base": "VCSL/"
+    },
+    {
+      "id": "vcsl-chordophones",
+      "version": "v1",
+      "url": "https://github.com/IGSparkew/dual-samples/releases/download/v1/vcsl-chordophones-v1.zip",
+      "sha256": "8ff6eacdf520c1c3575afa153b30f6d9263006e19388a16f46239b760cf32cee",
+      "sizeBytes": 377300159,
+      "map": "vcsl.json",
+      "base": "VCSL/"
+    },
+    {
+      "id": "vcsl-membranophones",
+      "version": "v1",
+      "url": "https://github.com/IGSparkew/dual-samples/releases/download/v1/vcsl-membranophones-v1.zip",
+      "sha256": "1d3d5507a32c6d4cc199b5f4306e47de6448a746721837941bf6bea475e170d2",
+      "sizeBytes": 311059292,
+      "map": "vcsl.json",
+      "base": "VCSL/"
+    },
+    {
+      "id": "vcsl-electrophones",
+      "version": "v1",
+      "url": "https://github.com/IGSparkew/dual-samples/releases/download/v1/vcsl-electrophones-v1.zip",
+      "sha256": "c0069ad43229144a5eb5171b775a234f6af65e7d00f9659ffc4defa3e4ccbfd6",
+      "sizeBytes": 21447728,
+      "map": "vcsl.json",
+      "base": "VCSL/"
+    },
+    {
+      "id": "tidal-drum-machines",
+      "version": "v1",
+      "url": "https://github.com/IGSparkew/dual-samples/releases/download/v1/tidal-drum-machines-v1.zip",
+      "sha256": "21d5f2b6e7e91dd4bf778f87376748ea2152a8a932e883f801bcbed72810300f",
+      "sizeBytes": 144501218,
+      "maps": ["tidal-drum-machines.json", "EmuSP12.json"],
+      "base": "machines/"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { LayoutManager } from '@layout/components/LayoutManager';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
 import { PromptDialog } from './shared/PromptDialog';
+import { SamplePacksMenu } from './shared/SamplePacksMenu';
 
 // Register all built-in modules
 import '@modules/transport/index';
@@ -73,6 +74,7 @@ export function App() {
             </button>
           ))}
         </div>
+        <SamplePacksMenu />
       </header>
       <main className={styles.workspace}>
         <LayoutManager layoutId={activeLayoutId} />

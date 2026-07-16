@@ -56,9 +56,13 @@ export function isClipInit(api: PanelCodeApi, source: string): boolean {
 }
 
 /** Initial clip content per editor type — what the "new clip" form creates.
- *  Both land inside the matching grid's mini-notation subset (8 steps). */
+ *  Both land inside the matching grid's mini-notation subset (8 steps).
+ *  The drum template starts silent: a bare `bd` never resolves without an
+ *  installed bank (see [[sound-map-banks]]) — the user picks a bank or adds
+ *  rows explicitly via the drum grid toolbar instead of hitting a missing
+ *  sample on the very first clip. */
 export const CLIP_TEMPLATES = {
-  drum: 's("bd ~ ~ ~ bd ~ ~ ~")',
+  drum: 's("~ ~ ~ ~ ~ ~ ~ ~")',
   piano: 'note("~ ~ ~ ~ ~ ~ ~ ~")',
 } as const;
 

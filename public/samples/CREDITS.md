@@ -3,12 +3,17 @@
 - **piano** — Salamander Grand Piano V3 by Alexander Holm.
   License: CC-BY 3.0 — https://creativecommons.org/licenses/by/3.0/
   Source: https://archive.org/details/SalamanderGrandPianoV3
-- **VCSL** — Versilian Community Sample Library.
+- **VCSL** — Versilian Community Sample Library. Optional pack, installed at
+  the user's request (via `packs-manifest.json`, hosted on the `dual-samples`
+  GitHub releases) — this attribution applies once installed.
   License: CC0 — https://github.com/sgossner/VCSL
 - **mridangam** — Mridangam samples, (c) Arthur Carabott 2022,
   performer Harishankar V Menon.
   License: CC-BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/
 - **tidal-drum-machines** (incl. EmuSP12) — drum-machine collection by ritchse / geikha.
+  Optional pack, installed at the user's request (via `packs-manifest.json`,
+  hosted on the `dual-samples` GitHub releases) — this attribution applies
+  once installed.
   Source: https://github.com/geikha/tidal-drum-machines
   License: not uniformly specified upstream — verify per machine before
   commercial distribution.

@@ -23,6 +23,6 @@
       "@modules/*": ["./modules/*"]
     }
   },
-  "include": ["src", "src/strudel.d.ts", "modules"],
+  "include": ["src", "src/strudel.d.ts", "modules", "tests"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

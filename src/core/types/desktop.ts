@@ -31,10 +31,39 @@ export type MenuAction =
   | 'git-pull'
   | 'git-set-remote';
 
+export interface PackProgress {
+  packId: string;
+  phase: 'downloading' | 'verifying' | 'extracting' | 'done' | 'error';
+  receivedBytes: number;
+  totalBytes: number;
+  /** Set on phase: 'error'. */
+  message?: string;
+}
+
+export interface PackState {
+  id: string;
+  status: 'installed' | 'available' | 'installing';
+  /** Installed version (from `.pack-version`), absent when status is 'available'. */
+  version?: string;
+  sizeBytes: number;
+}
+
 export interface DualDesktop {
   getPaths(): Promise<DesktopPaths>;
   /** File names (not paths) directly under userdata/<subdir>. */
   listUserDir(subdir: UserDirName): Promise<string[]>;
+  /** Combines packs-manifest.json with installed/in-progress state under userdata/samples/. */
+  getPackStates(): Promise<PackState[]>;
+  /** Downloads, verifies (sha256) and extracts a tier-2 sample pack into
+   *  userdata/samples/<id>/. Rejects if already installed/installing or if
+   *  disk space is insufficient — check the resolved state via getPackStates(). */
+  installPack(packId: string): Promise<void>;
+  /** Removes userdata/samples/<id>/ entirely. Rejects if the pack is currently
+   *  installing or isn't installed. Call sampleLoader.unloadPack(id) afterward
+   *  to drop its sounds from the running session's sound map. */
+  uninstallPack(packId: string): Promise<void>;
+  /** Subscribes to install progress for any pack; returns an unsubscribe function. */
+  onPackProgress(callback: (progress: PackProgress) => void): () => void;
 
   openProjectDialog(): Promise<ProjectFile | null>;
   saveProjectDialog(code: string): Promise<{ path: string; name: string } | null>;

@@ -37,7 +37,21 @@ export default defineConfig({
   plugins: [
     react(),
     electron({
-      main: { entry: 'electron/main.ts' },
+      main: {
+        entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rolldownOptions: {
+              // unzipper's Open/s3.js lazily `require`s the AWS SDK only when the
+              // (unused) unzipper.Open.s3(...) API is called — it's an optional
+              // dependency we don't install, but the bundler still tries to
+              // statically resolve that require(). Externalizing it keeps it as
+              // a runtime require instead of failing the main-process build.
+              external: ['@aws-sdk/client-s3'],
+            },
+          },
+        },
+      },
       preload: { input: resolve(__dirname, 'electron/preload.ts') },
     }),
   ],

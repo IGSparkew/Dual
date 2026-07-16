@@ -14,8 +14,7 @@
     "make:module": "node scripts/scaffold-module.js",
     "vendor:samples": "node scripts/vendor-samples.mjs",
     "vendor:soundfonts": "node scripts/vendor-soundfonts.mjs",
-    "samples:pack": "node scripts/pack-samples.mjs",
-    "samples:unpack": "node scripts/unpack-samples.mjs",
+    "package:remote-packs": "node scripts/package-remote-packs.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -31,6 +30,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "superdough": "^1.0.0",
+    "unzipper": "^0.12.5",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
@@ -38,7 +38,9 @@
     "@types/node": "^26.0.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/unzipper": "^0.10.11",
     "@vitejs/plugin-react": "^6.0.3",
+    "archiver": "^8.0.0",
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
     "patch-package": "^8.0.1",

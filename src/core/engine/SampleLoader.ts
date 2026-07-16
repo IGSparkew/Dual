@@ -5,6 +5,14 @@ export interface SampleLoader {
    * Idempotent — safe to call multiple times.
    */
   loadDefaults(): Promise<void>;
+  /**
+   * Register a single tier-2 pack that has just been installed under
+   * userdata/samples/<id>/ (see getPackStates()), without restarting the app.
+   * Called by the sample-packs UI right after installPack(id) resolves.
+   * No-op in a plain browser (no window.dualDesktop) or if the id is unknown to
+   * packs-manifest.json. Idempotent — samples() merges/overwrites map entries.
+   */
+  loadInstalledPack(id: string): Promise<void>;
   load(url: string): Promise<AudioBuffer>;
   loadFromFile(file: File): Promise<AudioBuffer>;
   /** Register a file as a named Strudel sample. Returns the name to use in s("name"). */

@@ -2,7 +2,7 @@
   "id": "arrangement",
   "name": "Arrangement",
   "version": "1.0.0",
-  "icon": "ListMusic",
+  "icon": "list-music",
   "description": "Horizontal timeline over the arrange(...) call",
   "defaultSlot": "center-top",
   "minSize": {

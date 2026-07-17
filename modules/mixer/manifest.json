@@ -2,7 +2,7 @@
   "id": "mixer",
   "name": "Mixer",
   "version": "1.0.0",
-  "icon": "SlidersHorizontal",
+  "icon": "sliders-horizontal",
   "description": "Channel faders, knobs and VU meters",
   "defaultSlot": "right",
   "minSize": { "width": 200, "height": 200 },

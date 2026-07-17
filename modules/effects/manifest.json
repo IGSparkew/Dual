@@ -2,7 +2,7 @@
   "id": "effects",
   "name": "FX Rack",
   "version": "1.0.0",
-  "icon": "Sliders",
+  "icon": "sliders",
   "description": "Visual effects chain per channel",
   "defaultSlot": "center-bottom",
   "minSize": { "width": 300, "height": 160 },

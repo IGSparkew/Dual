@@ -6,6 +6,7 @@ import { projectManager } from '@core/project/impl/ProjectManagerImpl';
 import { useMenuBridge } from '@core/project/useMenuBridge';
 import { useStore } from '@core/state/store';
 import { LayoutManager } from '@layout/components/LayoutManager';
+import { PanelIcon } from '@layout/components/PanelIcon';
 import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
 import { PromptDialog } from './shared/PromptDialog';
@@ -27,7 +28,7 @@ import '@layout/loaders/layout-loader';
 export function App() {
   const engineStatus = useStore((s) => s.engineStatus);
   const layouts = useLayoutRegistry();
-  const [activeLayoutId, setActiveLayoutId] = useState('production');
+  const [activeLayoutId, setActiveLayoutId] = useState('minimal');
 
   useMenuBridge();
 
@@ -69,7 +70,7 @@ export function App() {
               onClick={() => setActiveLayoutId(id)}
               title={name}
             >
-              {icon && <span className={styles.layoutIcon}>{icon}</span>}
+              {icon && <span className={styles.layoutIcon}><PanelIcon name={icon} /></span>}
               {name}
             </button>
           ))}

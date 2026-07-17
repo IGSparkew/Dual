@@ -1,13 +1,13 @@
 {
-  "id": "minimal",
-  "name": "Minimal",
-  "icon": "▫",
+  "id": "minimal", "name": "Minimal", "icon": "layout-panel-left",
   "tree": {
-    "type": "split",
-    "axis": "y",
-    "ratio": 0.88,
+    "type": "split", "axis": "y", "ratio": 0.88,
     "children": [
-      { "type": "panel", "panelId": "editor" },
+      { "type": "split", "axis": "x", "ratio": 0.5,
+        "children": [
+          { "type": "panel", "panelId": "session" },
+          { "type": "panel", "panelId": "editor" }
+        ] },
       { "type": "panel", "panelId": "transport" }
     ]
   }

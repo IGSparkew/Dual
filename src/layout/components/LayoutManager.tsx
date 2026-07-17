@@ -19,7 +19,7 @@ export function LayoutManager({ layoutId }: LayoutManagerProps) {
 
   return (
     <div className={styles.root}>
-      <LayoutRenderer key={layout.id} node={layout.tree} />
+      <LayoutRenderer key={layout.id} node={layout.tree} layoutId={layout.id} path={[]} />
     </div>
   );
 }

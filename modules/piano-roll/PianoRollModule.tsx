@@ -1,23 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 import {
   addNote,
   deriveClips,
   moveNote,
+  nearestInScale,
   noteToken,
   removeNote,
   resizeNote,
   setStepCount,
   writeRoll,
+  writeScaleState,
   STEP_CHOICES,
-  MIDI_MAX,
   type PianoRoll,
   type RollClip,
   type RollNote,
+  type ScaleSpec,
+  type ScaleState,
 } from './piano-roll';
 import { rescaleStepCount, writeCycles } from '@modules/shared/loop-length';
 import { PianoRollToolbar } from './components/PianoRollToolbar';
-import { drawRoll, ROLL_HEIGHT, ROW_HEIGHT } from './components/piano-roll-renderer';
+import { drawRoll, ROW_HEIGHT, visibleMidis } from './components/piano-roll-renderer';
 import { cellAt, hitTest, type RollHit } from './components/note-interaction';
 import styles from './PianoRollModule.module.css';
 
@@ -47,6 +50,15 @@ export function PianoRollModule({ api }: PanelProps) {
   const [roll, setRoll] = useState<PianoRoll | null>(null);
   const [hover, setHover] = useState<RollHit | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  // Visual-aid scale picked before the code is written (« Écrire .scale() »
+  // unchecked) — a per-clip choice, reset when the active clip changes.
+  const [localScale, setLocalScale] = useState<ScaleSpec | null>(null);
+  // Purely cosmetic — whether the picked scale dims/highlights the grid at all.
+  // Independent from `scaleOn` (code-writing mode, which still enforces exact
+  // scale tones via `snapToScale` regardless of this toggle).
+  const [showScale, setShowScale] = useState(true);
+  // Label every gutter key with its note name (not just the Cs).
+  const [showNoteNames, setShowNoteNames] = useState(false);
 
   const activeRef = useRef<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -55,6 +67,10 @@ export function PianoRollModule({ api }: PanelProps) {
   const lastSpanRef = useRef(1);
 
   const setActiveClip = (name: string | null) => {
+    // Reset the visual-aid scale only on an actual clip switch — `refresh`
+    // calls this on every `code:changed` (including our own writes) with the
+    // SAME name, which must not wipe out the pick mid-edit.
+    if (name !== activeRef.current) setLocalScale(null);
     activeRef.current = name;
     setActive(name);
   };
@@ -90,23 +106,61 @@ export function PianoRollModule({ api }: PanelProps) {
     [api, refresh],
   );
 
-  // Center the vertical scroll around c3 (midi 48) when the clip changes.
+  // The roll as drawn: the drag preview replaces the derived model mid-gesture.
+  const displayed = drag ? drag.preview : roll;
+
+  // Scale mode: `scaleOn` reflects the clip's managed `.scale(...)`;
+  // `effectiveScale` is what the grid/gutter actually dim — the clip's spec
+  // when written, else the not-yet-written local pick.
+  const scaleOn = roll?.scaleState?.kind === 'on';
+  const effectiveScale: ScaleSpec | null = scaleOn
+    ? (roll!.scaleState as { kind: 'on'; spec: ScaleSpec }).spec
+    : localScale;
+
+  // « Lock scale »: the clip's `.scale(...)` is written AND the grid folds to
+  // its tones (only in-scale rows shown, Ableton-style). Safe because every
+  // stored note is already an exact scale tone in that mode (see snapToScale).
+  const folded = scaleOn && effectiveScale !== null;
+  // The displayed pitch rows: every semitone, or only the scale's tones when
+  // folded. Shared by the renderer's layout and the hit test.
+  const rows = useMemo(
+    () => visibleMidis(folded ? effectiveScale : null),
+    [folded, effectiveScale?.rootChroma, effectiveScale?.typeId],
+  );
+  // Highlight the scale whenever folded (root orientation) or when the cosmetic
+  // « Afficher sur la grille » is on with a picked root.
+  const highlightScale = folded || showScale ? effectiveScale : null;
+
+  // Center the vertical scroll around c3 (midi 48) when the clip changes or the
+  // layout folds/unfolds — the row of the first pitch ≤ 48 (rows are
+  // descending), so it works whether or not c3 itself is an in-scale row.
   useEffect(() => {
     const wrap = scrollRef.current;
     if (!wrap) return;
-    wrap.scrollTop = (MIDI_MAX - 48) * ROW_HEIGHT - wrap.clientHeight / 2;
-  }, [active]);
-
-  // The roll as drawn: the drag preview replaces the derived model mid-gesture.
-  const displayed = drag ? drag.preview : roll;
+    const row = Math.max(0, rows.findIndex((m) => m <= 48));
+    wrap.scrollTop = row * ROW_HEIGHT - wrap.clientHeight / 2;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, folded]);
 
   // Mirror for the draw loop (reads outside React's render cycle).
   const viewRef = useRef<{
     roll: PianoRoll | null;
+    rows: number[];
     hover: RollHit | null;
     dragIndex: number | null;
-  }>({ roll: null, hover: null, dragIndex: null });
-  viewRef.current = { roll: displayed, hover: drag ? null : hover, dragIndex: drag?.index ?? null };
+    scale: ScaleSpec | null;
+    folded: boolean;
+    showNoteNames: boolean;
+  }>({ roll: null, rows: [], hover: null, dragIndex: null, scale: null, folded: false, showNoteNames: false });
+  viewRef.current = {
+    roll: displayed,
+    rows,
+    hover: drag ? null : hover,
+    dragIndex: drag?.index ?? null,
+    scale: highlightScale,
+    folded,
+    showNoteNames,
+  };
 
   // ─── Draw loop (roll + playhead, via the canvas API) ────────────────────────
 
@@ -123,9 +177,13 @@ export function PianoRollModule({ api }: PanelProps) {
         if (surface) {
           drawRoll(surface, {
             roll: view.roll,
+            rows: view.rows,
             hover: view.hover,
             dragIndex: view.dragIndex,
             playhead,
+            scale: view.scale,
+            folded: view.folded,
+            showNoteNames: view.showNoteNames,
           });
         }
       }),
@@ -168,6 +226,56 @@ export function PianoRollModule({ api }: PanelProps) {
     api.code.write(text);
   };
 
+  // Scale mode toggle / spec change: quantizes the notes to the new scale
+  // (merging any resulting same-pitch overlaps) and writes the content +
+  // `.scale(...)` in ONE go — same combined-write pattern as `handleCycles`.
+  const applyScaleState = (next: ScaleState) => {
+    const name = activeRef.current;
+    if (!name || !roll) return;
+    let nextRoll = roll;
+    if (next.kind === 'on') {
+      const quantized = roll.notes.map((n) => ({ ...n, midi: nearestInScale(n.midi, next.spec) }));
+      const deduped: RollNote[] = [];
+      for (const n of quantized) {
+        const overlap = deduped.some(
+          (d) => d.midi === n.midi && d.step < n.step + n.span && n.step < d.step + d.span,
+        );
+        if (!overlap) deduped.push(n);
+      }
+      if (deduped.length < roll.notes.length) {
+        api.showNotification(
+          'Certaines notes se sont superposées après quantification vers la gamme et ont été fusionnées',
+          'info',
+        );
+      }
+      nextRoll = { ...roll, notes: deduped, scaleState: next };
+    } else {
+      nextRoll = { ...roll, scaleState: next };
+    }
+    setRoll(nextRoll); // optimistic — refresh re-derives from the document
+    let text = writeRoll(api.code, api.getCode(), name, nextRoll);
+    text = writeScaleState(api.code, text, name, next);
+    api.code.write(text);
+  };
+
+  const handleScaleSpecChange = (spec: ScaleSpec | null) => {
+    setLocalScale(spec);
+    if (scaleOn) {
+      applyScaleState(spec ? { kind: 'on', spec } : { kind: 'off' });
+    }
+  };
+
+  const handleScaleOnChange = (on: boolean) => {
+    if (!roll) return;
+    if (on) {
+      if (localScale) applyScaleState({ kind: 'on', spec: localScale });
+    } else {
+      const spec = scaleOn ? (roll.scaleState as { kind: 'on'; spec: ScaleSpec }).spec : null;
+      applyScaleState({ kind: 'off' });
+      setLocalScale(spec);
+    }
+  };
+
   const emitNote = (type: 'note:created' | 'note:deleted', note: RollNote, total: number) => {
     api.emit(type, {
       note: noteToken(note.midi),
@@ -178,10 +286,15 @@ export function PianoRollModule({ api }: PanelProps) {
 
   // ─── Canvas events ──────────────────────────────────────────────────────────
 
+  // When the clip's `.scale(...)` is written, every stored note must be an
+  // exact scale tone — snap BEFORE add/move (resize never touches pitch).
+  const snapToScale = (midi: number): number =>
+    roll?.scaleState?.kind === 'on' ? nearestInScale(midi, roll.scaleState.spec) : midi;
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || !roll || drag) return;
-    const hit = hitTest(canvas, roll, e.clientX, e.clientY);
+    const hit = hitTest(canvas, roll, rows, e.clientX, e.clientY);
     if (!hit) return;
     e.preventDefault();
 
@@ -206,7 +319,7 @@ export function PianoRollModule({ api }: PanelProps) {
 
     // Empty cell: add a note with the last used span.
     if (e.button !== 0) return;
-    const next = addNote(roll, hit.midi, hit.step, lastSpanRef.current);
+    const next = addNote(roll, snapToScale(hit.midi), hit.step, lastSpanRef.current);
     if (next === roll) {
       // Rejected: a same-pitch note already covers this range.
       api.showNotification('Ajout refusé — une note de même hauteur occupe déjà ce pas', 'info');
@@ -221,15 +334,15 @@ export function PianoRollModule({ api }: PanelProps) {
     if (!canvas || !roll) return;
 
     if (drag) {
-      const cell = cellAt(canvas, roll, e.clientX, e.clientY);
+      const cell = cellAt(canvas, roll, rows, e.clientX, e.clientY);
       const preview =
         drag.mode === 'move'
-          ? moveNote(roll, drag.index, cell.midi, cell.step - drag.grabStep)
+          ? moveNote(roll, drag.index, snapToScale(cell.midi), cell.step - drag.grabStep)
           : resizeNote(roll, drag.index, cell.step - roll.notes[drag.index].step + 1);
       setDrag({ ...drag, preview, moved: true });
       return;
     }
-    setHover(hitTest(canvas, roll, e.clientX, e.clientY));
+    setHover(hitTest(canvas, roll, rows, e.clientX, e.clientY));
   };
 
   const handlePointerUp = () => {
@@ -260,6 +373,14 @@ export function PianoRollModule({ api }: PanelProps) {
         }}
         onStepCount={handleStepCount}
         onCycles={handleCycles}
+        scaleSpec={effectiveScale}
+        scaleOn={scaleOn}
+        onScaleSpecChange={handleScaleSpecChange}
+        onScaleOnChange={handleScaleOnChange}
+        showScale={showScale}
+        onShowScaleChange={setShowScale}
+        showNoteNames={showNoteNames}
+        onShowNoteNamesChange={setShowNoteNames}
       />
 
       {clips.length === 0 && (
@@ -278,7 +399,7 @@ export function PianoRollModule({ api }: PanelProps) {
           <canvas
             ref={canvasRef}
             className={styles.canvas}
-            style={{ height: ROLL_HEIGHT, cursor }}
+            style={{ height: rows.length * ROW_HEIGHT, cursor }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}

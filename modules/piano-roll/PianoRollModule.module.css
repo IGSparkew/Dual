@@ -50,6 +50,21 @@
   opacity: 0.4;
 }
 
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.checkboxLabel:has(input:disabled) {
+  color: var(--text-secondary);
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ── Roll area ──────────────────────────────────────────────── */
 
 /* Native vertical scroll — the canvas is taller than the panel. */

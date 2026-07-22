@@ -53,6 +53,11 @@ export interface GridClip {
   grid: DrumGrid | null;
   /** Literal value of `NAME_BANK` (drum machine bank); null when unmanaged. */
   bank: string | null;
+  /** Names of the member clips when `name` is a split group — a
+   *  `stack(a, b, …)` whose every argument is an identifier referencing its
+   *  own single-row drum clip (the product of `splitToClips`, or any
+   *  hand-written stack of drum-grid clips). Null otherwise. */
+  group: string[] | null;
 }
 
 export const MAX_SUB_HITS = 4;
@@ -309,6 +314,18 @@ export function bankName(clip: string): string {
   return `${clip.toUpperCase()}_BANK`;
 }
 
+// Mirrors session.ts / mixer.ts's gate/gain convention — reimplemented
+// locally rather than imported, same precedent as mixer.ts (modules stay
+// independent, see [[named-clips-model]]). Needed here to build and tear down
+// the leaf clips a split produces.
+function gateName(clip: string): string {
+  return `${clip.toUpperCase()}_ON`;
+}
+
+function gainName(clip: string): string {
+  return `${clip.toUpperCase()}_GAIN`;
+}
+
 /** Literal value of a clip's `NAME_BANK` const (null when absent). */
 function readBank(byName: Map<string, Decl>, clip: string): string | null {
   const def = byName.get(bankName(clip));
@@ -338,16 +355,37 @@ export function setBank(api: PanelCodeApi, code: string, name: string, bank: str
   return api.spliceSpan(next, def2.start, def2.start, `const ${bankC} = ${JSON.stringify(bank)};\n`);
 }
 
+/**
+ * Detect a split group: `stack(a, b, …)` whose every argument is an
+ * identifier, each referencing its own single-row drum clip (`deriveGrid`
+ * non-null). Covers the product of `splitToClips`, and more generally any
+ * hand-written stack of drum-grid clips — not restricted to the
+ * `${parent}_${sample}` naming convention. Only called when `deriveGrid`
+ * already returned null for `name` (it does for any stack of identifiers).
+ */
+function deriveGroup(api: PanelCodeApi, code: string, name: string): string[] | null {
+  const args = api.callArgs(code, name);
+  if (!args || args.length === 0) return null;
+  if (!args.every((a) => a.isIdentifier)) return null;
+  const members = args.map((a) => a.source.trim());
+  if (!members.every((m) => deriveGrid(api, code, m) !== null)) return null;
+  return members;
+}
+
 /** The clips the drum grid can list: session-convention `const … = stack(…)`. */
 export function deriveClips(api: PanelCodeApi, code: string, defs: Decl[]): GridClip[] {
   const byName = new Map(defs.map((d) => [d.name, d]));
   return defs
     .filter((d) => d.declKind === 'const' && d.initKind === 'pattern' && d.callee === 'stack')
-    .map((d) => ({
-      name: d.name,
-      grid: deriveGrid(api, code, d.name),
-      bank: readBank(byName, d.name),
-    }));
+    .map((d) => {
+      const grid = deriveGrid(api, code, d.name);
+      return {
+        name: d.name,
+        grid,
+        bank: readBank(byName, d.name),
+        group: grid === null ? deriveGroup(api, code, d.name) : null,
+      };
+    });
 }
 
 // ─── Serialization (model → code) ────────────────────────────────────────────
@@ -403,6 +441,142 @@ export function writeGrid(
   const args = api.callArgs(code, name);
   if (!args || args.length === 0) return code;
   return api.spliceSpan(code, args[0].start, args[args.length - 1].end, serializeGrid(grid));
+}
+
+// ─── Split → separate clips / Merge → back into one ──────────────────────────
+
+/** `hh:2` → `hh_2` — any character that cannot sit in a JS identifier becomes
+ *  `_`, for building a child clip's name suffix from its row sample. */
+function sanitizeSuffix(sample: string): string {
+  return sample.replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
+/** First candidate not already taken (name, or its derived gate/gain consts) —
+ *  mirrors `uniqueName` in session.ts, reimplemented locally (see gateName /
+ *  gainName above). `taken` is mutated by the caller as names are claimed, so
+ *  two rows that sanitize to the same base never collide with each other. */
+function uniqueChildName(taken: ReadonlySet<string>, base: string): string {
+  const free = (candidate: string) =>
+    !taken.has(candidate) && !taken.has(gateName(candidate)) && !taken.has(gainName(candidate));
+  if (free(base)) return base;
+  for (let i = 2; ; i++) {
+    const candidate = `${base}${i}`;
+    if (free(candidate)) return candidate;
+  }
+}
+
+/** One split-off leaf clip: its own gate/gain chain, same shape as
+ *  `buildLeaf` in session.ts (reimplemented locally — see gateName/gainName
+ *  above). The `stack(...)` wrapper is required: `deriveClips` only picks up
+ *  `callee === 'stack'` initializers. */
+function buildChildLeaf(name: string, row: DrumRow): string {
+  const on = gateName(name);
+  const gain = gainName(name);
+  return `const ${gain} = 1;\nconst ${on} = 1;\nconst ${name} = stack(s("${rowMini(row)}")).gain(${on} ? ${gain} : 0);`;
+}
+
+/**
+ * Explode a multi-row clip into one leaf clip per row (`${name}_${sample}`,
+ * deduplicated), and turn `name` into a group referencing them by identifier.
+ * The leaves are inserted just BEFORE the parent's `const` — never after
+ * (`api.code.insertDecl` would land past it, and the parent referencing
+ * consts declared later violates the TDZ order `validateGraph` enforces).
+ * Only the parent's stack arguments are replaced; its chain (`.slow`, `.gain`,
+ * FX…) is untouched.
+ */
+export function splitToClips(
+  api: PanelCodeApi,
+  code: string,
+  name: string,
+  grid: DrumGrid,
+): string {
+  const defs = api.list(code);
+  if (!defs) return code;
+  const parentDef = defs.find((d) => d.name === name);
+  if (!parentDef) return code;
+
+  const taken = new Set(defs.map((d) => d.name));
+  const childNames: string[] = [];
+  const leaves: string[] = [];
+  for (const row of grid.rows) {
+    const child = uniqueChildName(taken, `${name}_${sanitizeSuffix(row.sample)}`);
+    taken.add(child);
+    taken.add(gateName(child));
+    taken.add(gainName(child));
+    childNames.push(child);
+    leaves.push(buildChildLeaf(child, row));
+  }
+  if (childNames.length === 0) return code;
+
+  const next = api.spliceSpan(code, parentDef.start, parentDef.start, `${leaves.join('\n')}\n`);
+
+  // Re-resolve offsets on the spliced text before touching the parent's args.
+  const args = api.callArgs(next, name);
+  if (!args || args.length === 0) return next;
+  return api.spliceSpan(next, args[0].start, args[args.length - 1].end, childNames.join(', '));
+}
+
+/**
+ * Guard before merging a split group: refuse (read-only, no write) when a
+ * member is referenced by another clip's stack — merging would leave a dead
+ * ref — or launched directly by the `$:` block — merging would silently pull
+ * it out from under the user. Returns the blocking member names; empty = safe
+ * to merge.
+ */
+export function checkMergeGroup(
+  api: PanelCodeApi,
+  code: string,
+  name: string,
+  members: string[],
+): string[] {
+  const defs = api.list(code) ?? [];
+  const memberSet = new Set(members);
+  const blocked = new Set<string>();
+
+  for (const def of defs) {
+    if (def.name === name) continue; // the group's own reference is expected
+    for (const ref of def.refs) {
+      if (memberSet.has(ref)) blocked.add(ref);
+    }
+  }
+  for (const expr of api.dollarExprs(code)) {
+    const source = expr.source.trim();
+    if (expr.isIdentifier && memberSet.has(source)) blocked.add(source);
+  }
+  return [...blocked];
+}
+
+/**
+ * Merge a split group's members back into one clip: fold their rows into a
+ * merged mini-notation written over the group's `const` (via `writeGrid`),
+ * then delete each member and its gate/gain consts. The caller must first
+ * check `checkMergeGroup` — this function does not re-check.
+ */
+export function mergeGroupClips(
+  api: PanelCodeApi,
+  code: string,
+  name: string,
+  members: string[],
+): string {
+  const rows: DrumRow[] = [];
+  for (const member of members) {
+    const memberGrid = deriveGrid(api, code, member);
+    if (memberGrid) rows.push(...memberGrid.rows);
+  }
+  const merged: DrumGrid = {
+    rows,
+    stepCount: rows[0]?.steps.length ?? 0,
+    form: 'merged',
+    cycles: readCycles(api, code, name),
+  };
+
+  let next = writeGrid(api, code, name, merged);
+  for (const member of members) {
+    next = api.removeDecl(next, member);
+    next = api.removeDecl(next, gateName(member));
+    next = api.removeDecl(next, gainName(member));
+  }
+  return next;
 }
 
 // ─── Mutations (pure, grid → grid) ───────────────────────────────────────────

@@ -2,17 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PanelProps } from '@layout/registry/PanelRegistry';
 import {
   addRow,
+  checkMergeGroup,
   cycleSubHits,
   deriveBankChoices,
   deriveClips,
   isSampleName,
+  mergeGroupClips,
   missingRowSamples,
   orderRows,
   removeRow,
   renameRow,
   setBank,
-  setForm,
   setStepCount,
+  splitToClips,
   toggleStep,
   writeGrid,
   DRUM_SAMPLES,
@@ -140,6 +142,7 @@ export function DrumGridModule({ api }: PanelProps) {
   // the whole sound map.
 
   const activeBank = clips.find((c) => c.name === active)?.bank ?? null;
+  const activeGroup = clips.find((c) => c.name === active)?.group ?? null;
   // bankChoices reads `grid` (document rows) while missingSamples reads
   // `displayed` — intended: overlay rows are not in the code yet (no playback
   // error possible) but their labels should still warn.
@@ -349,6 +352,32 @@ export function DrumGridModule({ api }: PanelProps) {
     api.code.write(setBank(api.code, api.getCode(), name, bank));
   };
 
+  // Explode the active multi-row clip into one leaf clip per row, each with
+  // its own gate/gain chain and mixer strip — the parent becomes a group.
+  const handleSplit = () => {
+    const name = activeRef.current;
+    if (!name || !grid || grid.rows.length <= 1) return;
+    api.code.write(splitToClips(api.code, api.getCode(), name, grid));
+  };
+
+  // Fold a detected group's members back into one merged clip, deleting the
+  // members (and their gate/gain consts) — a real undo of split. Refuses
+  // (no write) when a member is still referenced elsewhere.
+  const handleMerge = () => {
+    const name = activeRef.current;
+    if (!name || !activeGroup) return;
+    const code = api.getCode();
+    const blocked = checkMergeGroup(api.code, code, name, activeGroup);
+    if (blocked.length > 0) {
+      api.showNotification(
+        `Fusion annulée — encore utilisé ailleurs (autre clip ou $:) : ${blocked.join(', ')}`,
+        'warning',
+      );
+      return;
+    }
+    api.code.write(mergeGroupClips(api.code, code, name, activeGroup));
+  };
+
   // ─── Canvas events ──────────────────────────────────────────────────────────
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -368,7 +397,10 @@ export function DrumGridModule({ api }: PanelProps) {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
-  const complex = active !== null && grid === null;
+  // A detected group is a distinct, well-understood case — not "too complex",
+  // even though its own `grid` is null (a stack of identifiers).
+  const isGroup = active !== null && activeGroup !== null;
+  const complex = active !== null && grid === null && !isGroup;
   const rows = displayed?.rows ?? [];
 
   return (
@@ -377,6 +409,7 @@ export function DrumGridModule({ api }: PanelProps) {
         clips={clips}
         active={active}
         grid={grid}
+        group={activeGroup}
         bank={activeBank}
         onSelectClip={(name) => {
           setActiveClip(name);
@@ -384,9 +417,8 @@ export function DrumGridModule({ api }: PanelProps) {
         }}
         onStepCount={handleStepCount}
         onCycles={handleCycles}
-        onToggleForm={() =>
-          grid && applyGrid(setForm(grid, grid.form === 'merged' ? 'split' : 'merged'))
-        }
+        onSplit={handleSplit}
+        onMerge={handleMerge}
         onAddRow={handleAddRow}
         onSetBank={handleBank}
         stepChoices={STEP_CHOICES}
@@ -396,6 +428,18 @@ export function DrumGridModule({ api }: PanelProps) {
 
       {clips.length === 0 && (
         <div className={styles.empty}>Aucun clip — crée un clip dans la Session.</div>
+      )}
+
+      {isGroup && activeGroup && (
+        <div className={styles.infoBanner}>
+          <span>
+            « {active} » est un groupe de {activeGroup.length} clips séparés (
+            {activeGroup.join(', ')}) — sélectionne-en un pour l'éditer.
+          </span>
+          <button className={styles.toolbarBtn} onClick={handleMerge}>
+            Merge
+          </button>
+        </div>
       )}
 
       {complex && (

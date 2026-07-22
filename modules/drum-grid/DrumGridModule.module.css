@@ -197,6 +197,10 @@
 /* ── Banners / hints ────────────────────────────────────────── */
 
 .infoBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   flex-shrink: 0;
   padding: 8px 12px;
   font-size: 11px;

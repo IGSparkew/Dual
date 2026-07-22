@@ -285,9 +285,25 @@ const SUSTAIN = 0.45;
 
 /**
  * Bucket the evaluated haps per strip over one cycle. A hap belongs to the
- * strip whose declaration span contains its first source location; a group
+ * strip whose declaration span contains one of its source locations; a group
  * additionally inherits the activity of its transitive members. This is an
  * *activity* approximation (pattern structure), not a real audio level.
+ *
+ * A hap can carry more than one location: Strudel's `context.locations`
+ * accumulates one entry per mini-notation string that contributed to the
+ * hap, in `appLeft`/`combineContext` order — which puts the *control
+ * argument*'s location first, not the sample token's. This matters here
+ * because the transpiler mini-wraps every double-quoted string in the
+ * document, including chained string controls (e.g. `.bank(NAME_BANK)`,
+ * itself `const NAME_BANK = "RolandTR909"` spliced right above the clip, per
+ * this module's `provisionFader`-style convention). `locations[0]` then
+ * points at that separate config const's span — outside the clip's own decl
+ * — so a hap-vs-strip match on index 0 alone silently drops every hap for
+ * that clip (dark VU meter, not just single-sample: any `.method(CONST)`
+ * chain with a string const reproduces it). Each strip's decl span is a
+ * disjoint top-level range, so scanning all locations for the first one that
+ * lands inside some strip is unambiguous and covers the control-argument
+ * case too.
  */
 export function deriveActivity(
   haps: NormalizedHap[],
@@ -297,11 +313,13 @@ export function deriveActivity(
   const activity: Activity = {};
   for (const strip of strips) activity[strip.name] = new Array(buckets).fill(0);
 
-  // Direct attribution: first location offset inside a strip's decl span.
+  // Direct attribution: first location (of possibly several) that falls
+  // inside a strip's decl span.
   for (const hap of haps) {
-    const loc = hap.locations?.[0];
-    if (!loc) continue;
-    const strip = strips.find((s) => loc.start >= s.start && loc.start <= s.end);
+    if (!hap.locations || hap.locations.length === 0) continue;
+    const strip = hap.locations
+      .map((loc) => strips.find((s) => loc.start >= s.start && loc.start <= s.end))
+      .find((s): s is Strip => s !== undefined);
     if (!strip) continue;
     const level = Number.isFinite(hap.gain) ? hap.gain : 1;
     const from = Math.max(0, Math.floor(hap.begin * buckets));

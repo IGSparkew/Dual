@@ -1,12 +1,12 @@
 {
-  "id": "minimal", "name": "Minimal", "icon": "layout-panel-left",
+  "id": "arranger", "name": "Arranger", "icon": "layout-template",
   "tree": {
     "type": "split", "axis": "y", "ratio": 0.88,
     "children": [
-      { "type": "split", "axis": "x", "ratio": 0.5,
+      { "type": "split", "axis": "y", "ratio": 0.5,
         "children": [
           { "type": "panel", "panelId": "session" },
-          { "type": "panel", "panelId": "editor" }
+          { "type": "panel", "panelId": "arrangement" }
         ] },
       { "type": "panel", "panelId": "transport" }
     ]

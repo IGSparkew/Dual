@@ -1,5 +1,5 @@
 import { CYCLE_CHOICES } from '@modules/shared/loop-length';
-import type { PianoRoll, RollClip } from '../piano-roll';
+import { SCALE_TYPES, TONAL_ROOT_NAMES, type PianoRoll, type RollClip, type ScaleSpec } from '../piano-roll';
 import styles from '../PianoRollModule.module.css';
 
 interface PianoRollToolbarProps {
@@ -12,9 +12,24 @@ interface PianoRollToolbarProps {
   onStepCount: (n: number) => void;
   /** Loop length in cycles (« Mesures ») picked by the user. */
   onCycles: (n: number) => void;
+  /** Scale picked for the visual aid (root + type), or reflecting the clip's
+   *  managed `.scale(...)` once `scaleOn` is true. Null = "Aucune" root. */
+  scaleSpec: ScaleSpec | null;
+  /** Whether the clip's `.scale(...)` is written to the code. */
+  scaleOn: boolean;
+  onScaleSpecChange: (spec: ScaleSpec | null) => void;
+  onScaleOnChange: (on: boolean) => void;
+  /** Purely cosmetic — whether the picked scale dims/highlights the grid.
+   *  Independent from `scaleOn`. */
+  showScale: boolean;
+  onShowScaleChange: (show: boolean) => void;
+  /** Whether every gutter key is labelled with its note name. */
+  showNoteNames: boolean;
+  onShowNoteNamesChange: (show: boolean) => void;
 }
 
-/** Clip picker + measures + step count — same layout as the drum grid toolbar. */
+/** Clip picker + measures + step count + scale — same layout as the drum grid
+ *  toolbar. */
 export function PianoRollToolbar({
   clips,
   active,
@@ -23,6 +38,14 @@ export function PianoRollToolbar({
   onSelectClip,
   onStepCount,
   onCycles,
+  scaleSpec,
+  scaleOn,
+  onScaleSpecChange,
+  onScaleOnChange,
+  showScale,
+  onShowScaleChange,
+  showNoteNames,
+  onShowNoteNamesChange,
 }: PianoRollToolbarProps) {
   // Loop length: an unmanaged `.slow` (non-literal, decimal, duplicated)
   // disables the « Mesures » select — same hands-off policy as "complexe".
@@ -93,6 +116,73 @@ export function PianoRollToolbar({
             <option value={perMeasure}>{perMeasure}</option>
           )}
         </select>
+      </div>
+
+      <div className={styles.toolbarGroup}>
+        <span className={styles.toolbarLabel}>Gamme</span>
+        <select
+          className={styles.select}
+          value={scaleSpec?.rootChroma ?? -1}
+          onChange={(e) => {
+            const rootChroma = Number(e.target.value);
+            onScaleSpecChange(
+              rootChroma < 0 ? null : { rootChroma, typeId: scaleSpec?.typeId ?? SCALE_TYPES[0].id },
+            );
+          }}
+          title="Tonique de la gamme — aide visuelle, ou racine du .scale() écrit"
+        >
+          <option value={-1}>Aucune</option>
+          {TONAL_ROOT_NAMES.map((label, chroma) => (
+            <option key={chroma} value={chroma}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={styles.select}
+          value={scaleSpec?.typeId ?? SCALE_TYPES[0].id}
+          disabled={scaleSpec === null}
+          onChange={(e) => onScaleSpecChange({ rootChroma: scaleSpec!.rootChroma, typeId: e.target.value })}
+          title="Type de gamme"
+        >
+          {SCALE_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={scaleOn}
+            disabled={scaleSpec === null || !roll}
+            onChange={(e) => onScaleOnChange(e.target.checked)}
+            title="Verrouiller la gamme — écrit .scale() dans le code et replie la grille sur les seules notes de la gamme (comme Ableton)"
+          />
+          Lock scale
+        </label>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={showScale}
+            disabled={scaleSpec === null || scaleOn}
+            onChange={(e) => onShowScaleChange(e.target.checked)}
+            title="Afficher la gamme sur la grille — aide visuelle uniquement, sans effet sur le code (inutile quand la gamme est verrouillée)"
+          />
+          Afficher sur la grille
+        </label>
+      </div>
+
+      <div className={styles.toolbarGroup}>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={showNoteNames}
+            onChange={(e) => onShowNoteNamesChange(e.target.checked)}
+            title="Afficher le nom de chaque touche du clavier (pas seulement les Do)"
+          />
+          Noms des notes
+        </label>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
   "id": "drum-grid",
   "name": "Drum Grid",
   "version": "1.0.0",
-  "icon": "Grid3x3",
+  "icon": "grid-3x3",
   "description": "FL-style step sequencer editing s(\"...\") mini-notation",
   "defaultSlot": "center-top",
   "minSize": { "width": 400, "height": 200 },

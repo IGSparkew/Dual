@@ -29,6 +29,8 @@ export interface AppState {
   currentProjectPath: string | null;
   projectName: string;
   isDirty: boolean;
+  /** `${layoutId}:${slotKey}` -> panelId chosen by the user for that slot. */
+  layoutPanelOverrides: Record<string, string>;
 
   setTransport: (state: Partial<TransportState>) => void;
   setActiveCode: (code: string) => void;
@@ -41,6 +43,8 @@ export interface AppState {
   setCurrentProjectPath: (path: string | null) => void;
   setProjectName: (name: string) => void;
   setDirty: (dirty: boolean) => void;
+  setLayoutPanelOverride: (key: string, panelId: string) => void;
+  clearLayoutPanelOverride: (key: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -55,6 +59,7 @@ export const useStore = create<AppState>((set) => ({
   currentProjectPath: null,
   projectName: 'Untitled',
   isDirty: false,
+  layoutPanelOverrides: {},
 
   setTransport: (partial) =>
     set((s) => ({ transport: { ...s.transport, ...partial } })),
@@ -75,4 +80,11 @@ export const useStore = create<AppState>((set) => ({
   setCurrentProjectPath: (path) => set({ currentProjectPath: path }),
   setProjectName: (name) => set({ projectName: name }),
   setDirty: (dirty) => set({ isDirty: dirty }),
+  setLayoutPanelOverride: (key, panelId) =>
+    set((s) => ({ layoutPanelOverrides: { ...s.layoutPanelOverrides, [key]: panelId } })),
+  clearLayoutPanelOverride: (key) =>
+    set((s) => {
+      const { [key]: _removed, ...rest } = s.layoutPanelOverrides;
+      return { layoutPanelOverrides: rest };
+    }),
 }));

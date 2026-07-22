@@ -8,6 +8,9 @@ interface DrumGridToolbarProps {
   clips: GridClip[];
   active: string | null;
   grid: DrumGrid | null;
+  /** Active clip's split group members (`splitToClips` product), null when
+   *  the active clip is not a detected group. */
+  group: string[] | null;
   /** Active clip's drum machine bank (null = none / unmanaged). */
   bank: string | null;
   stepChoices: readonly number[];
@@ -19,7 +22,10 @@ interface DrumGridToolbarProps {
   onStepCount: (n: number) => void;
   /** Loop length in cycles (« Mesures ») picked by the user. */
   onCycles: (n: number) => void;
-  onToggleForm: () => void;
+  /** Explode a multi-row clip into one leaf clip per row (`splitToClips`). */
+  onSplit: () => void;
+  /** Fold a split group's members back into one clip (`mergeGroupClips`). */
+  onMerge: () => void;
   onAddRow: (sample: string) => void;
   onSetBank: (bank: string) => void;
 }
@@ -30,6 +36,7 @@ export function DrumGridToolbar({
   clips,
   active,
   grid,
+  group,
   bank,
   stepChoices,
   sampleSuggestions,
@@ -37,7 +44,8 @@ export function DrumGridToolbar({
   onSelectClip,
   onStepCount,
   onCycles,
-  onToggleForm,
+  onSplit,
+  onMerge,
   onAddRow,
   onSetBank,
 }: DrumGridToolbarProps) {
@@ -59,6 +67,11 @@ export function DrumGridToolbar({
     ? bankChoices.find((b) => b.name.toLowerCase() === bank.toLowerCase())?.name ?? bank
     : bank;
 
+  // Split needs at least two rows to break apart; merge needs a detected
+  // group — mutually exclusive (a group's own `grid` is always null).
+  const canSplit = grid !== null && grid.rows.length > 1;
+  const canMerge = group !== null;
+
   const addRow = () => {
     const name = sample.trim();
     if (!name) return;
@@ -79,7 +92,7 @@ export function DrumGridToolbar({
           {clips.map((clip) => (
             <option key={clip.name} value={clip.name}>
               {clip.name}
-              {clip.grid === null ? ' (complexe)' : ''}
+              {clip.group ? ' (groupe)' : clip.grid === null ? ' (complexe)' : ''}
             </option>
           ))}
         </select>
@@ -154,16 +167,16 @@ export function DrumGridToolbar({
 
       <button
         className={styles.toolbarBtn}
-        disabled={!grid}
-        onClick={onToggleForm}
+        disabled={!canSplit && !canMerge}
+        onClick={canMerge ? onMerge : onSplit}
         title={
-          grid?.form === 'merged'
-            ? 'Éclater en une ligne s() par sample — stack(s("bd …"), s("~ cp …"), …)'
-            : 'Fusionner en une seule ligne — s("bd cp [hh hh] sd")'
+          canMerge
+            ? `Fusionner « ${active} » en un seul clip — supprime les ${group?.length ?? 0} clips séparés`
+            : 'Éclater en clips séparés — un clip nommé par sample, chacun avec sa propre strip mixer'
         }
       >
-        {grid?.form === 'merged' ? <Split size={12} /> : <Merge size={12} />}
-        {grid?.form === 'merged' ? 'Split' : 'Merge'}
+        {canMerge ? <Merge size={12} /> : <Split size={12} />}
+        {canMerge ? 'Merge' : 'Split'}
       </button>
 
       <div className={styles.toolbarGroup}>

@@ -1,0 +1,293 @@
+/* ── Layout ─────────────────────────────────────────────────── */
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* Armed only by an OS file drop (see onDragOver) — an internal sound drag
+   must not look like an import target. */
+.panelDragOver {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tabActive {
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+/* ── Tree ───────────────────────────────────────────────────── */
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.empty {
+  margin: 12px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.bankGroup {
+  margin-bottom: 1px;
+}
+
+.bankHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.bankHeader:hover {
+  background: var(--bg-secondary);
+}
+
+.bankName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bankCount {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.bankSounds {
+  padding-left: 12px;
+}
+
+.soundRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.soundRow:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.playIcon {
+  flex-shrink: 0;
+  opacity: 0.35;
+}
+
+.soundRow:hover .playIcon {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.soundName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag,
+.variants {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+
+.tag {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hint {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 5px 8px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+/* ── Import dialog ──────────────────────────────────────────── */
+
+.dialogBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgb(0 0 0 / 55%);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  padding: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.select,
+.input {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.select:disabled,
+.input:disabled {
+  opacity: 0.4;
+}
+
+.dialogHint {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.dialogHint code {
+  color: var(--text-primary);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.btn,
+.btnPrimary {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-family: inherit;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.btn {
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.btnPrimary {
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn:disabled,
+.btnPrimary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

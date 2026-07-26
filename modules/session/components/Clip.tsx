@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play, Square, Layers } from 'lucide-react';
+import { hasSampleDrag } from '@core/types/sample-drag';
 import styles from '../SessionModule.module.css';
 import type { RawClip } from '../session';
 
@@ -13,11 +14,14 @@ export interface ClipProps {
   onSelect: (additive: boolean) => void;
   onLaunch: () => void;
   onRename: (label: string) => void;
+  /** A sound dropped from the browser onto this clip — retargets its sound. */
+  onSampleDrop: (transfer: DataTransfer) => void;
 }
 
 export function Clip(props: ClipProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(props.label);
+  const [dropTarget, setDropTarget] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -44,8 +48,25 @@ export function Clip(props: ClipProps) {
       data-focused={props.isFocused}
       data-muted={props.clip.isMuted}
       data-playing={props.isPlaying}
+      data-drop-target={dropTarget}
       onClick={(e) => props.onSelect(e.ctrlKey || e.metaKey)}
       onDoubleClick={startEdit}
+      onDragOver={(e) => {
+        if (!hasSampleDrag(e.dataTransfer)) return;
+        // Claim the event so the grid's own handler doesn't also create a clip.
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+        setDropTarget(true);
+      }}
+      onDragLeave={() => setDropTarget(false)}
+      onDrop={(e) => {
+        if (!hasSampleDrag(e.dataTransfer)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setDropTarget(false);
+        props.onSampleDrop(e.dataTransfer);
+      }}
     >
       <div className={styles.clipInner}>
         <div className={styles.clipHeader}>

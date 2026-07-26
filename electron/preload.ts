@@ -38,6 +38,13 @@ contextBridge.exposeInMainWorld('dualDesktop', {
     ipcRenderer.on('pack:progress', listener);
     return () => ipcRenderer.removeListener('pack:progress', listener);
   },
+  importSamples: (request: {
+    name: string;
+    files: { relPath: string; bytes: ArrayBuffer }[];
+    mapJson: string;
+  }) => ipcRenderer.invoke('dual:import-samples', request),
+  listUserPacks: () => ipcRenderer.invoke('dual:list-user-packs'),
+  deleteUserPack: (name: string) => ipcRenderer.invoke('dual:delete-user-pack', name),
   openProjectDialog: () => ipcRenderer.invoke('dual:open-project-dialog'),
   saveProjectDialog: (code: string) => ipcRenderer.invoke('dual:save-project-dialog', code),
   writeFile: (path: string, code: string) => ipcRenderer.invoke('dual:write-file', path, code),

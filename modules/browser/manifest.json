@@ -1,0 +1,10 @@
+{
+  "id": "browser",
+  "name": "Sample Browser",
+  "version": "1.0.0",
+  "icon": "file-audio",
+  "description": "Registered sounds, preview and user sample import",
+  "defaultSlot": "left",
+  "minSize": { "width": 260, "height": 240 },
+  "capabilities": ["code:read", "code:write", "state:read"]
+}

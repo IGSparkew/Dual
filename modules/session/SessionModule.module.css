@@ -513,3 +513,15 @@
   justify-content: flex-end;
   gap: 6px;
 }
+
+/* ── Sample drop (from the browser) ──────────────────────────── */
+
+.scrollArea[data-drop-target='true'] {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}
+
+.cellClip[data-drop-target='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 32%, var(--bg-panel));
+}

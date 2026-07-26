@@ -5,10 +5,13 @@ import type { Decl, GraphError } from '@core/interpreter/CodeRegion';
 import { SessionToolbar } from './components/SessionToolBar';
 import { SessionGrid } from './components/SessionGrid';
 import { NewClipDialog } from './components/NewClipDialog';
+import { readSampleDrag } from '@core/types/sample-drag';
 import {
+  applyDroppedSound,
   buildGroup,
   buildLeaf,
   clipsReferencing,
+  insertDroppedClip,
   deriveClips,
   dollarRefs,
   expandGroup,
@@ -179,6 +182,43 @@ export function SessionModule({ api }: PanelProps) {
     return null;
   };
 
+  // ─── Dropped sounds (from the browser) ──────────────────────────────────────
+
+  /**
+   * A sound dragged out of the browser. On a clip it retargets that clip's
+   * sound (or bank); on empty space it creates a clip seeded with it. Either
+   * way the document is the only thing written — the drop is just another
+   * source of edits, not a second state.
+   */
+  const handleSampleDrop = (transfer: DataTransfer, target: RawClip | null) => {
+    if (frozen) return;
+    const payload = readSampleDrag(transfer);
+    if (!payload) return;
+
+    const code = api.getCode();
+    if (target) {
+      if (!target.hasGate) {
+        // Hand-edited clip: the grid does not own its shape, so it must not
+        // rewrite it (same rule as the mute).
+        api.showNotification(`« ${target.name} » est édité à la main`, 'warning');
+        return;
+      }
+      apply(applyDroppedSound(api.code, code, target.name, payload));
+      setFocused(target.name);
+      api.emit('sample:dropped', { samplePath: payload.soundName, targetClipId: target.name });
+      return;
+    }
+
+    const taken = (api.code.list(code) ?? []).map((d) => d.name);
+    const name = uniqueName(taken, isValidClipName(payload.label) ? payload.label : 'clip');
+    const next = insertDroppedClip(api.code, code, name, payload);
+    if (api.code.list(next) === null) return; // would not parse — drop nothing
+    apply(next);
+    setSelection([name]);
+    setFocused(name);
+    api.emit('sample:dropped', { samplePath: payload.soundName, targetClipId: name });
+  };
+
   // ─── Group / ungroup ────────────────────────────────────────────────────────
 
   const handleGroup = () => {
@@ -332,6 +372,7 @@ export function SessionModule({ api }: PanelProps) {
         onSelect={handleSelect}
         onLaunch={handleLaunch}
         onRename={handleRename}
+        onSampleDrop={handleSampleDrop}
       />
 
       {newClipOpen && (

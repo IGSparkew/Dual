@@ -48,6 +48,16 @@ export interface PackState {
   sizeBytes: number;
 }
 
+/** One browser import, written to userdata/samples/<name>/ by the main process. */
+export interface UserSampleImport {
+  /** Slugified pack name, `user_`-prefixed (`user_kick`, `user_mabank`). */
+  name: string;
+  /** Audio files, `relPath` flat inside the pack folder (`bd.wav`). */
+  files: { relPath: string; bytes: ArrayBuffer }[];
+  /** Serialized dough-format map, written as `<name>.json` beside the files. */
+  mapJson: string;
+}
+
 export interface DualDesktop {
   getPaths(): Promise<DesktopPaths>;
   /** File names (not paths) directly under userdata/<subdir>. */
@@ -64,6 +74,19 @@ export interface DualDesktop {
   uninstallPack(packId: string): Promise<void>;
   /** Subscribes to install progress for any pack; returns an unsubscribe function. */
   onPackProgress(callback: (progress: PackProgress) => void): () => void;
+
+  /** Writes a browser import (audio files + dough map) into
+   *  userdata/samples/<name>/, replacing that folder if the name already
+   *  exists. Call sampleLoader.registerUserPack(name) afterward to make the
+   *  sounds playable without a restart. */
+  importSamples(request: UserSampleImport): Promise<void>;
+  /** Names of the imported packs on disk (each `user_`-prefixed folder under
+   *  userdata/samples/ that carries its map) — how boot re-registers imports.
+   *  Never returns tier-2 packs. */
+  listUserPacks(): Promise<string[]>;
+  /** Removes an imported pack's folder. Its sounds stay in the running
+   *  session's map until the next restart. */
+  deleteUserPack(name: string): Promise<void>;
 
   openProjectDialog(): Promise<ProjectFile | null>;
   saveProjectDialog(code: string): Promise<{ path: string; name: string } | null>;

@@ -6,6 +6,12 @@ import { USER_DIRS, type UserDir } from './userdata';
 import { getLastProjectPath, setLastProjectPath } from './appState';
 import { findRepoRoot, gitCommit, gitPull, gitPush, setRemote } from './git';
 import { getPackStates, installPack, uninstallPack } from './packs';
+import {
+  deleteUserPack,
+  importUserSamples,
+  listUserPacks,
+  type UserSampleImport,
+} from './samples';
 
 interface ProjectFile {
   path: string;
@@ -52,6 +58,31 @@ export function registerIpcHandlers(win: BrowserWindow): void {
       throw new Error('dual:uninstall-pack expects a string packId');
     }
     await uninstallPack(packId);
+  });
+
+  // Writes a browser import into userdata/samples/<name>/ (audio files + map).
+  // Files arrive as ArrayBuffers — structured clone carries them natively, no
+  // base64 round-trip.
+  ipcMain.handle('dual:import-samples', async (_event, request: unknown): Promise<void> => {
+    const candidate = request as UserSampleImport | undefined;
+    if (
+      !candidate ||
+      typeof candidate.name !== 'string' ||
+      typeof candidate.mapJson !== 'string' ||
+      !Array.isArray(candidate.files)
+    ) {
+      throw new Error('dual:import-samples expects { name, files, mapJson }');
+    }
+    await importUserSamples(candidate);
+  });
+
+  ipcMain.handle('dual:list-user-packs', () => listUserPacks());
+
+  ipcMain.handle('dual:delete-user-pack', async (_event, name: unknown): Promise<void> => {
+    if (typeof name !== 'string') {
+      throw new Error('dual:delete-user-pack expects a string name');
+    }
+    await deleteUserPack(name);
   });
 
   // File names (not paths) directly under userdata/<subdir>.

@@ -11,6 +11,7 @@
  */
 import type { PanelCodeApi } from '@layout/api/PanelApi';
 import type { Decl } from '@core/interpreter/CodeRegion';
+import type { SampleDragPayload } from '@core/types/sample-drag';
 
 /** A clip as the grid sees it, derived from the document. */
 export interface RawClip {
@@ -278,4 +279,136 @@ export function toSession(
 ): { code: string; captured: string } {
   const captured = isArrangeOutput(api, code) ? api.outputSource(code) ?? '' : '';
   return { code: api.setOutput(code, projectDollar(playing)), captured };
+}
+
+// ─── Dropped sounds (browser → clip) ─────────────────────────────────────────
+// The session applies these because it owns the clip convention: a drop lands
+// on ITS grid, so the shapes below are the same ones buildLeaf/provisionGate
+// produce. The browser's only contribution is the drag payload.
+
+/** Bank const of a clip — the drum grid's convention (`NAME_BANK`), mirrored
+ *  here rather than imported so the two modules stay independent. Writing the
+ *  same shape is what makes a bank dropped here show up in its selector. */
+export function bankName(clip: string): string {
+  return `${clip.toUpperCase()}_BANK`;
+}
+
+/** Eight rests — a dropped sound creates the clip, the grid/roll fills it in. */
+const REST_PATTERN = '~ ~ ~ ~ ~ ~ ~ ~';
+
+/**
+ * Content for a clip created by dropping a sound on empty space, ready to be
+ * wrapped by `buildLeaf`:
+ *  - a bank    → `s("bd ~ …").bank(NAME_BANK)` (const emitted separately);
+ *  - a pitched → `note("~ …").sound("user_epiano")`;
+ *  - a sample  → `s("user_kick ~ …")`.
+ */
+export function droppedClipContent(
+  clip: string,
+  payload: SampleDragPayload,
+  instrument = 'bd',
+): string {
+  if (payload.bank !== null) {
+    return `s("${instrument} ${REST_PATTERN}").bank(${bankName(clip)})`;
+  }
+  if (payload.kind === 'pitched') {
+    return `note("${REST_PATTERN}").sound(${JSON.stringify(payload.soundName)})`;
+  }
+  return `s("${payload.soundName} ${REST_PATTERN}")`;
+}
+
+/**
+ * Insert the clip a dropped sound produces. A bank needs its `NAME_BANK` const
+ * declared before the clip that references it, hence two `insertDecl` calls —
+ * `insertDecl` places each just before the output, so declaration order
+ * follows insertion order.
+ */
+export function insertDroppedClip(
+  api: PanelCodeApi,
+  code: string,
+  clip: string,
+  payload: SampleDragPayload,
+): string {
+  let next = code;
+  if (payload.bank !== null) {
+    next = api.insertDecl(next, `const ${bankName(clip)} = ${JSON.stringify(payload.bank)};`);
+  }
+  return api.insertDecl(next, buildLeaf(clip, droppedClipContent(clip, payload)));
+}
+
+/**
+ * Retarget an existing clip at a dropped sound.
+ *
+ * A bank goes through the drum grid's machinery (`NAME_BANK` const referenced
+ * by `.bank(...)`), provisioned on first touch and only re-valued afterwards.
+ * A plain sound rewrites the `.sound(...)`/`.s(...)` argument in place, falling
+ * back to the root constructor's argument (`s("bd")` — `chainCalls` excludes
+ * the root) and finally to appending `.sound("…")`.
+ */
+export function applyDroppedSound(
+  api: PanelCodeApi,
+  code: string,
+  clip: string,
+  payload: SampleDragPayload,
+): string {
+  return payload.bank !== null
+    ? setClipBank(api, code, clip, payload.bank)
+    : setClipSound(api, code, clip, payload.soundName);
+}
+
+export function setClipSound(
+  api: PanelCodeApi,
+  code: string,
+  clip: string,
+  soundName: string,
+): string {
+  const def = (api.list(code) ?? []).find((d) => d.name === clip);
+  if (!def || def.initKind !== 'pattern') return code;
+
+  const literal = JSON.stringify(soundName);
+  // chainCalls spans are document-absolute; rebase them onto `def.source` so
+  // the whole initializer can be handed to setInit.
+  const rebase = (start: number, end: number): string =>
+    def.source.slice(0, start - def.initStart) + literal + def.source.slice(end - def.initStart);
+
+  const link = (api.chainCalls(code, clip) ?? []).find(
+    (l) => l.method === 'sound' || l.method === 's',
+  );
+  if (link && link.args.length >= 1) {
+    return api.setInit(code, clip, rebase(link.args[0].start, link.args[0].end));
+  }
+  if (def.callee === 's' || def.callee === 'sound') {
+    const args = api.callArgs(code, clip);
+    if (args && args.length >= 1) {
+      return api.setInit(code, clip, rebase(args[0].start, args[0].end));
+    }
+  }
+  return api.setInit(code, clip, `${def.source}.sound(${literal})`);
+}
+
+export function setClipBank(
+  api: PanelCodeApi,
+  code: string,
+  clip: string,
+  bank: string,
+): string {
+  const defs = api.list(code) ?? [];
+  const constName = bankName(clip);
+  if (defs.some((d) => d.name === constName)) {
+    return api.setInit(code, constName, JSON.stringify(bank));
+  }
+  const def = defs.find((d) => d.name === clip);
+  if (!def || def.initKind !== 'pattern') return code;
+
+  const withCall = api.spliceSpan(code, def.initEnd, def.initEnd, `.bank(${constName})`);
+  // The splice above shifts every offset downstream — re-resolve before the
+  // const insertion (same dance as provisionGate).
+  const moved = (api.list(withCall) ?? []).find((d) => d.name === clip);
+  if (!moved) return withCall;
+  return api.spliceSpan(
+    withCall,
+    moved.start,
+    moved.start,
+    `const ${constName} = ${JSON.stringify(bank)};\n`,
+  );
 }

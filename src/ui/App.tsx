@@ -11,6 +11,7 @@ import { useLayoutRegistry } from '@layout/registry/LayoutRegistryImpl';
 import { Notifications } from './shared/Notifications';
 import { PromptDialog } from './shared/PromptDialog';
 import { SamplePacksMenu } from './shared/SamplePacksMenu';
+import { BrowserDrawer } from './shared/BrowserDrawer';
 
 // Register all built-in modules
 import '@modules/transport/index';
@@ -21,6 +22,7 @@ import '@modules/piano-roll/index';
 import '@modules/mixer/index';
 import '@modules/effects/index';
 import '@modules/arrangement/index';
+import '@modules/browser/index';
 
 // Load layouts from /layouts/*.json
 import '@layout/loaders/layout-loader';
@@ -76,6 +78,7 @@ export function App() {
           ))}
         </div>
         <SamplePacksMenu />
+        <BrowserDrawer />
       </header>
       <main className={styles.workspace}>
         <LayoutManager layoutId={activeLayoutId} />

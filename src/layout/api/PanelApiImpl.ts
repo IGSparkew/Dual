@@ -2,6 +2,8 @@ import type { PanelApi, NotificationType, PanelCodeApi } from './PanelApi';
 import type { Hap } from '@core/types/hap';
 import type { TransportState } from '@core/types/transport';
 import type { AppState } from '@core/state/store';
+import type { SoundInfo } from '@core/types/sound';
+import type { UserSampleImport } from '@core/types/desktop';
 import { useStore } from '@core/state/store';
 import { eventBus } from '@core/events/EventBusImpl';
 import type { EventMap, EventType } from '@core/events/event-types';
@@ -55,6 +57,27 @@ class PanelApiImpl implements PanelApi {
 
   subscribeToSounds(callback: (names: string[]) => void): () => void {
     return sampleLoader.onSoundsChanged(callback);
+  }
+
+  getSoundInfos(): SoundInfo[] {
+    return sampleLoader.getSoundInfos();
+  }
+
+  previewSound(name: string, note?: string): Promise<void> {
+    return sampleLoader.previewSound(name, note);
+  }
+
+  canImportSamples(): boolean {
+    return Boolean(window.dualDesktop);
+  }
+
+  async importSamples(request: UserSampleImport): Promise<void> {
+    const desktop = window.dualDesktop;
+    if (!desktop) throw new Error('Sample import requires the desktop app');
+    await desktop.importSamples(request);
+    // Register straight away so the sounds are playable without a restart —
+    // boot performs the same registration by scanning userdata/samples/.
+    await sampleLoader.registerUserPack(request.name);
   }
 
   getCode(): string {

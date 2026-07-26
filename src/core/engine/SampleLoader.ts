@@ -1,3 +1,5 @@
+import type { SoundInfo } from '@core/types/sound';
+
 export interface SampleLoader {
   /**
    * Register the default dough-samples packs vendored under public/samples/.
@@ -41,6 +43,32 @@ export interface SampleLoader {
    * Synchronous; returns [] before any pack has been registered.
    */
   getSoundNames(): string[];
+  /**
+   * Same set as getSoundNames(), each name carried with the shape of what is
+   * registered behind it (sample vs synth, drum list vs pitched note map, file
+   * count). Read straight off superdough's map — the browser derives its tree
+   * from this and never touches the filesystem for display.
+   *
+   * Synchronous; returns [] before any pack has been registered.
+   */
+  getSoundInfos(): SoundInfo[];
+  /**
+   * Register a user sample pack imported into `userdata/samples/user_<name>/`
+   * (map file `user_<name>.json`, wavs alongside it), without restarting the
+   * app — the hot path called right after window.dualDesktop.importSamples()
+   * resolves. Boot registers the same packs by scanning that folder.
+   * No-op in a plain browser. Idempotent — samples() merges map entries.
+   */
+  registerUserPack(name: string): Promise<void>;
+  /**
+   * Fire a single sound straight through superdough, bypassing the pattern
+   * engine and the transport — audition a sample without starting playback or
+   * touching the document. `note` picks the pitch for a pitched map
+   * (`kind: 'pitched'`), and is ignored by drum lists. Resolves once the sound
+   * is scheduled, not when it ends. No-op (warns) if the audio context is not
+   * running yet — StrudelBridge.init() must have happened (first gesture).
+   */
+  previewSound(name: string, note?: string): Promise<void>;
   /**
    * Subscribe to sound-map changes (packs loading, user samples registered
    * after startup via registerFile). The callback receives the same sorted,

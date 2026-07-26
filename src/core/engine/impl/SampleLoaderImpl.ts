@@ -1,5 +1,6 @@
 import type { SampleLoader } from '../SampleLoader';
 import type { DualDesktop } from '@core/types/desktop';
+import type { SoundInfo } from '@core/types/sound';
 // Static import is safe here: superdough's module evaluation is pure JS — the
 // AudioContext is only created lazily inside getAudioContext(). It is also the
 // SAME module instance the dynamically imported @strudel/webaudio writes into
@@ -22,11 +23,23 @@ import { soundMap } from 'superdough';
  * from user-provided maps are NOT filtered by superdough, hence our `_` filter.
  */
 interface SoundMapStore {
-  get(): Record<string, unknown>;
+  get(): Record<string, SoundMapEntry | undefined>;
   /** nanostores listen: fires on each setKey/set, returns an unbind function. */
-  listen(cb: (sounds: Record<string, unknown>) => void): () => void;
+  listen(cb: (sounds: Record<string, SoundMapEntry | undefined>) => void): () => void;
   /** nanostores map: setKey(key, undefined) deletes the key entirely. */
   setKey(key: string, value: unknown): void;
+}
+
+/** One sound-map value. `data` is what registerSound's 3rd argument carried:
+ *  `{ type: 'sample', samples }` for packs, `{ type: 'synth' }` for built-ins.
+ *  `samples` is a flat list (played by index, `bd:2`) or a note map (pitched). */
+interface SoundMapEntry {
+  data?: {
+    type?: string;
+    samples?: string[] | Record<string, string | string[]>;
+    /** Soundfont programs (registerSoundfonts): the GM font variants. */
+    fonts?: unknown[];
+  };
 }
 
 const soundStore = soundMap as SoundMapStore;
@@ -175,8 +188,13 @@ export class SampleLoaderImpl implements SampleLoader {
     }
   }
 
-  // User packs: any strudel.json map dropped at the root of userdata/samples,
-  // with relative paths resolved against that same folder.
+  // User packs, two flavours:
+  //  - any strudel.json map dropped at the ROOT of userdata/samples, with
+  //    relative paths resolved against that same folder (hand-placed maps);
+  //  - each userdata/samples/user_<name>/ folder written by the browser's
+  //    import (map `user_<name>.json` + wavs alongside it). The `user_`
+  //    prefix is what keeps these from ever colliding with a tier-2 pack id
+  //    (vcsl-*, tidal-drum-machines) living in that same directory.
   private async loadUserPacks(
     desktop: DualDesktop,
     samples: (map: string, base?: string) => Promise<void>,
@@ -187,6 +205,14 @@ export class SampleLoaderImpl implements SampleLoader {
       await Promise.all(maps.map((map) => samples(root + map, root)));
     } catch (error) {
       console.error('Failed to load user sample packs:', error);
+    }
+    try {
+      const imported = await desktop.listUserPacks();
+      await Promise.all(
+        imported.map((name) => samples(`${root}${name}/${name}.json`, `${root}${name}/`)),
+      );
+    } catch (error) {
+      console.error('Failed to load imported user samples:', error);
     }
   }
 
@@ -230,6 +256,17 @@ export class SampleLoaderImpl implements SampleLoader {
     return sampleName;
   }
 
+  async previewSound(name: string, note?: string): Promise<void> {
+    const { superdough } = await import('superdough');
+    const ctx = await this.getContext();
+    // superdough refuses a target in the past; a small lead also lets the
+    // sampler fetch the file before the deadline. Duration only bounds
+    // envelope/looping — one-shots play to their natural end.
+    const value: Record<string, unknown> = { s: name, gain: 0.8 };
+    if (note !== undefined) value.note = note;
+    await superdough(value, ctx.currentTime + 0.05, 1);
+  }
+
   async preload(urls: string[]): Promise<void> {
     await Promise.all(urls.map((url) => this.load(url)));
   }
@@ -238,6 +275,48 @@ export class SampleLoaderImpl implements SampleLoader {
     return Object.keys(soundStore.get())
       .filter((name) => !name.startsWith('_'))
       .sort();
+  }
+
+  getSoundInfos(): SoundInfo[] {
+    const store = soundStore.get();
+    return Object.keys(store)
+      .filter((name) => !name.startsWith('_'))
+      .sort()
+      .map((name) => {
+        const data = store[name]?.data;
+        const samples = data?.samples;
+        // A General MIDI program (registerSoundfonts) — note-addressed, backed
+        // by fonts instead of files, so it has no `samples` to inspect.
+        if (data?.type === 'soundfont') {
+          return {
+            name,
+            type: 'soundfont' as const,
+            kind: 'pitched' as const,
+            variants: data.fonts?.length ?? 0,
+          };
+        }
+        // A flat array is an index-addressed drum list; a plain object maps
+        // note names to files. Synths carry no `samples` at all.
+        if (Array.isArray(samples)) {
+          return { name, type: 'sample' as const, kind: 'drum' as const, variants: samples.length };
+        }
+        if (samples && typeof samples === 'object') {
+          return {
+            name,
+            type: 'sample' as const,
+            kind: 'pitched' as const,
+            variants: Object.keys(samples).length,
+          };
+        }
+        return { name, type: 'synth' as const, kind: 'drum' as const, variants: 0 };
+      });
+  }
+
+  async registerUserPack(name: string): Promise<void> {
+    if (!window.dualDesktop) return; // plain browser: nothing persisted to register
+    const { samples } = await import('@strudel/webaudio');
+    const packRoot = `dual://user/samples/${name}/`;
+    await samples(`${packRoot}${name}.json`, packRoot);
   }
 
   onSoundsChanged(cb: (names: string[]) => void): () => void {

@@ -11,6 +11,8 @@ import type {
   GraphError,
   OutputRegion,
 } from '@core/interpreter/CodeRegion';
+import type { SoundInfo } from '@core/types/sound';
+import type { UserSampleImport } from '@core/types/desktop';
 import type { PanelCanvasApi } from './PanelCanvasApi';
 
 export type { Notification };
@@ -91,6 +93,20 @@ export interface PanelApi {
    *  receives the same list as `getSounds()`, replayed once on subscribe (no
    *  gap with an initial read). Returns an unsubscribe. */
   subscribeToSounds(callback: (names: string[]) => void): () => void;
+  /** Same set as `getSounds()`, each name carried with what is registered
+   *  behind it (sample vs synth, drum list vs pitched note map, file count).
+   *  Re-read it from a `subscribeToSounds` callback to stay current. */
+  getSoundInfos(): SoundInfo[];
+  /** Audition one sound immediately — bypasses the pattern engine and the
+   *  transport, writes nothing. `note` picks the pitch on a pitched map. */
+  previewSound(name: string, note?: string): Promise<void>;
+  /** Whether sample imports can be persisted — false in a plain browser, where
+   *  there is no userdata folder to write to. Gate the import UI on it. */
+  canImportSamples(): boolean;
+  /** Persist an import under userdata/samples/<name>/ and register it in the
+   *  sound map right away — no restart. Rejects when `canImportSamples()` is
+   *  false. Re-importing a name replaces its folder. */
+  importSamples(request: UserSampleImport): Promise<void>;
   getCode(): string;
   modifyCode(transform: (code: string) => string): void;
   getState<T>(selector: (state: AppState) => T): T;

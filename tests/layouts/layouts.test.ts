@@ -151,30 +151,33 @@ describe('layouts/*.json — default layout set', () => {
   });
 });
 
-describe('userdata/layouts/*.json — desktop seed mirrors core layouts', () => {
-  it('exists and contains a readable directory', () => {
-    expect(fs.existsSync(USERDATA_LAYOUTS_DIR)).toBe(true);
-  });
+// `userdata/` is gitignored and only exists once the desktop app has run and
+// seeded it, so a fresh clone — CI included — has nothing to assert against.
+// Skipping the block there keeps the checks meaningful locally instead of
+// weakening them into no-ops that would pass on a broken seed.
+describe.skipIf(!fs.existsSync(USERDATA_LAYOUTS_DIR))(
+  'userdata/layouts/*.json — desktop seed mirrors core layouts',
+  () => {
+    it('has exactly the same set of ids as layouts/, no more, no less', () => {
+      const coreIds = readJsonFiles(LAYOUTS_DIR)
+        .map((f) => (f.content as LayoutDefinition).id)
+        .sort();
+      const userdataIds = readJsonFiles(USERDATA_LAYOUTS_DIR)
+        .map((f) => (f.content as LayoutDefinition).id)
+        .sort();
 
-  it('has exactly the same set of ids as layouts/, no more, no less', () => {
-    const coreIds = readJsonFiles(LAYOUTS_DIR)
-      .map((f) => (f.content as LayoutDefinition).id)
-      .sort();
-    const userdataIds = readJsonFiles(USERDATA_LAYOUTS_DIR)
-      .map((f) => (f.content as LayoutDefinition).id)
-      .sort();
+      expect(userdataIds).toEqual(coreIds);
+    });
 
-    expect(userdataIds).toEqual(coreIds);
-  });
-
-  it('has no orphaned file from a previously removed layout (production, two-columns, mixing, live-coding, arranging, test-layout)', () => {
-    const removedIds = ['production', 'two-columns', 'mixing', 'live-coding', 'arranging', 'test-layout'];
-    const allIds = [
-      ...readJsonFiles(LAYOUTS_DIR).map((f) => (f.content as LayoutDefinition).id),
-      ...readJsonFiles(USERDATA_LAYOUTS_DIR).map((f) => (f.content as LayoutDefinition).id),
-    ];
-    for (const removed of removedIds) {
-      expect(allIds, `stale id "${removed}" still present`).not.toContain(removed);
-    }
-  });
-});
+    it('has no orphaned file from a previously removed layout (production, two-columns, mixing, live-coding, arranging, test-layout)', () => {
+      const removedIds = ['production', 'two-columns', 'mixing', 'live-coding', 'arranging', 'test-layout'];
+      const allIds = [
+        ...readJsonFiles(LAYOUTS_DIR).map((f) => (f.content as LayoutDefinition).id),
+        ...readJsonFiles(USERDATA_LAYOUTS_DIR).map((f) => (f.content as LayoutDefinition).id),
+      ];
+      for (const removed of removedIds) {
+        expect(allIds, `stale id "${removed}" still present`).not.toContain(removed);
+      }
+    });
+  },
+);

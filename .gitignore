@@ -9,3 +9,10 @@ userdata/
 
 # zips produced by `npm run package:remote-packs` for the dual-samples GitHub releases
 release-packs/
+
+# lcov.info + html report written by `npx vitest run --coverage`, read by SonarQube
+coverage/
+
+# SonarScanner working directory and cached analysis reports
+.scannerwork/
+.sonar/

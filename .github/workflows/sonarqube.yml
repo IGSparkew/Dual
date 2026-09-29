@@ -62,12 +62,18 @@ jobs:
         run: |
           echo "::warning title=SonarQube analysis skipped::SONAR_TOKEN is not set on this repository, so the scan did not run. It has to be added by the repository owner under Settings > Secrets and variables > Actions — the token itself is generated from the Sonar account (My Account > Security). Add SONAR_HOST_URL too when using a self-hosted server."
 
-      # SONAR_HOST_URL is only required for a self-hosted server; leaving it
-      # empty targets SonarCloud.
+      # SONAR_HOST_URL must always be set: the job env exports it even when the
+      # secret is missing, and the scanner rejects an empty value ("URI with
+      # undefined scheme") instead of falling back to SonarCloud. Use
+      # https://sonarcloud.io for SonarQube Cloud.
       # Third-party action pinned to a full commit SHA: a tag can be moved to
       # point at arbitrary code, a commit SHA cannot. Bump SHA + comment together.
+      # continue-on-error: a Sonar-side failure (expired/revoked token, server
+      # outage) is reported but does not block the PR — same reasoning as the
+      # missing-token skip above.
       - uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         if: env.SONAR_TOKEN != ''
+        continue-on-error: true
         with:
           # Project identity comes from repo variables so a fork can analyse
           # its own project without editing a tracked file. The `||` fallbacks

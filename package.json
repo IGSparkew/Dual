@@ -15,7 +15,9 @@
     "vendor:samples": "node scripts/vendor-samples.mjs",
     "vendor:soundfonts": "node scripts/vendor-soundfonts.mjs",
     "package:remote-packs": "node scripts/package-remote-packs.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.2",

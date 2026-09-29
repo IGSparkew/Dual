@@ -27,7 +27,12 @@ jobs:
           node-version: ${{ vars.NODE_VERSION || '20' }}
           cache: npm
 
-      - run: npm ci
+      # --ignore-scripts: no dependency lifecycle script (preinstall, install,
+      # postinstall) runs on the CI runner, which holds SONAR_TOKEN in its env.
+      # Nothing here needs them: electron is mocked in the tests (so its binary
+      # download is not required) and esbuild resolves its native binary
+      # through optionalDependencies.
+      - run: npm ci --ignore-scripts
 
       # sonar.projectVersion is not stored in sonar-project.properties: it would
       # drift from package.json at every release and misattribute new code to a
@@ -37,12 +42,13 @@ jobs:
 
       # Type errors must fail the build here rather than surface as Sonar
       # smells — tsc is the authority on types, Sonar is not.
-      - run: npx tsc --noEmit
+      # `npm run` rather than `npx`: npx falls back to downloading an unpinned
+      # package from the registry when the binary is missing locally, whereas
+      # npm run only resolves binaries already installed from package-lock.json.
+      - run: npm run typecheck
 
       # Writes coverage/lcov.info, read by sonar.javascript.lcov.reportPaths.
-      # Called directly rather than through a package.json script, to keep this
-      # workflow self-contained and avoid touching the project manifest.
-      - run: npx vitest run --coverage
+      - run: npm run test:coverage
 
       # SONAR_TOKEN can only be issued from the Sonar account behind the
       # server, so it has to be set by the repository owner — a contributor
@@ -58,7 +64,9 @@ jobs:
 
       # SONAR_HOST_URL is only required for a self-hosted server; leaving it
       # empty targets SonarCloud.
-      - uses: SonarSource/sonarqube-scan-action@v8
+      # Third-party action pinned to a full commit SHA: a tag can be moved to
+      # point at arbitrary code, a commit SHA cannot. Bump SHA + comment together.
+      - uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         if: env.SONAR_TOKEN != ''
         with:
           # Project identity comes from repo variables so a fork can analyse

@@ -72,7 +72,11 @@ jobs:
           # Project identity comes from repo variables so a fork can analyse
           # its own project without editing a tracked file. The `||` fallbacks
           # keep the workflow runnable when no variable is set.
+          # sonar.organization is required by SonarQube Cloud and meaningless
+          # on a self-hosted server, so it is only passed when
+          # SONAR_ORGANIZATION is set.
           args: >
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || 'dual' }}
             -Dsonar.projectName=${{ vars.SONAR_PROJECT_NAME || 'Dual' }}
             -Dsonar.projectVersion=${{ steps.meta.outputs.version }}
+            ${{ vars.SONAR_ORGANIZATION && format('-Dsonar.organization={0}', vars.SONAR_ORGANIZATION) || '' }}
